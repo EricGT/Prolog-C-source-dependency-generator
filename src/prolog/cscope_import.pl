@@ -288,7 +288,8 @@ def_line(File, Symbol, LineNum, Context) -->
     digits(LineNumCodes),
     { number_codes(LineNum, LineNumCodes),
       debug(cscope(parse), '    Field 3 (line): ~w', [LineNum]) },
-    space_char,
+    % space_char,
+    tab_char,
     rest_of_line(ContextCodes),
     { string_codes(Context, ContextCodes),
       debug(cscope(parse), '    Field 4 (context): ~s', [Context]) }.
@@ -325,7 +326,8 @@ call_line(File, Caller, LineNum, Context) -->
     digits(LineNumCodes),
     { number_codes(LineNum, LineNumCodes),
       debug(cscope(parse), '    Field 3 (line): ~w', [LineNum]) },
-    space_char,
+    space_char,    
+    % tab_char, % TODO Should use tab not space
     rest_of_line(ContextCodes),
     { string_codes(Context, ContextCodes),
       debug(cscope(parse), '    Field 4 (context): ~s', [Context]) }.
@@ -362,6 +364,7 @@ symbol_line(File, Symbol, LineNum, Context) -->
     { number_codes(LineNum, LineNumCodes),
       debug(cscope(parse), '    Field 3 (line): ~w', [LineNum]) },
     space_char,
+    % tab_char, % TODO Should use tab not space
     rest_of_line(ContextCodes),
     { string_codes(Context, ContextCodes),
       debug(cscope(parse), '    Field 4 (context): ~s', [Context]) }.

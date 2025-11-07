@@ -460,6 +460,38 @@ def extract_definitions_from_symbols(symbols_file: Path, logger: Optional[Logger
     return definitions
 
 
+def reformat_symbol_line(line: str) -> Optional[str]:
+    """
+    Reformat a cscope symbol line to tab-separated format with normalized paths.
+
+    Input format (space-separated): <filepath> <scope> <line> <context>
+    Output format (tab-separated): <filepath>\t<scope>\t<line> <context>
+
+    Args:
+        line: Raw cscope -L -0 output line
+
+    Returns:
+        Reformatted line or None if parsing fails
+    """
+    line = line.strip()
+    if not line:
+        return None
+
+    # Parse: <filepath> <scope> <line> <context>
+    parts = line.split(' ', 3)
+    if len(parts) < 4:
+        return None
+
+    filepath, scope, line_num, context = parts
+
+    # Normalize filepath for Prolog
+    filepath = normalize_path_for_prolog(filepath)
+
+    # Return tab-separated format
+    # Format: <filepath>\t<scope>\t<line> <context>
+    return f"{filepath}\t{scope}\t{line_num} {context}"
+
+
 def reformat_callee_line(line: str, caller: str) -> Optional[str]:
     """
     Reformat a cscope callee line to tab-separated format with normalized paths.
@@ -921,25 +953,65 @@ def generate_cscope_data(
                 f"cscope {' '.join(extraction['args'])}"
             )
 
-        # Extract directly to file
-        success, output = run_cscope_command(
-            extraction['args'],
-            cwd=src_subdir,  # Run from src/ subdirectory where database is
-            output_file=output_file,
-            verbose=verbose,
-            quiet=quiet,
-            logger=logger
-        )
+        # For symbols, we need to reformat the output to tab-separated format
+        if extraction['name'] == 'symbols':
+            # Extract to stdout (no output_file)
+            success, output = run_cscope_command(
+                extraction['args'],
+                cwd=src_subdir,
+                verbose=verbose,
+                quiet=quiet,
+                logger=logger
+            )
 
-        if not success:
-            error_msg = f"Failed to extract {extraction['name']}: {output}"
-            print_error(error_msg)
-            if logger:
-                logger.log_error(error_msg)
-            return False
+            if not success:
+                error_msg = f"Failed to extract {extraction['name']}: {output}"
+                print_error(error_msg)
+                if logger:
+                    logger.log_error(error_msg)
+                return False
 
-        line_count = count_lines(output_file)
-        stats[extraction['name']] = line_count
+            # Reformat each line to tab-separated format
+            reformatted_lines = []
+            for line in output.strip().split('\n'):
+                if line.strip():
+                    reformatted = reformat_symbol_line(line)
+                    if reformatted:
+                        reformatted_lines.append(reformatted)
+
+            # Write reformatted output to file
+            try:
+                with open(output_file, 'w', encoding='utf-8') as f:
+                    for line in reformatted_lines:
+                        f.write(line + '\n')
+                line_count = len(reformatted_lines)
+                stats[extraction['name']] = line_count
+            except Exception as e:
+                error_msg = f"Failed to write {extraction['name']}: {e}"
+                print_error(error_msg)
+                if logger:
+                    logger.log_error(error_msg)
+                return False
+        else:
+            # Extract directly to file for other extractions
+            success, output = run_cscope_command(
+                extraction['args'],
+                cwd=src_subdir,  # Run from src/ subdirectory where database is
+                output_file=output_file,
+                verbose=verbose,
+                quiet=quiet,
+                logger=logger
+            )
+
+            if not success:
+                error_msg = f"Failed to extract {extraction['name']}: {output}"
+                print_error(error_msg)
+                if logger:
+                    logger.log_error(error_msg)
+                return False
+
+            line_count = count_lines(output_file)
+            stats[extraction['name']] = line_count
 
         if logger:
             logger.log_operation(
