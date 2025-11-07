@@ -295,7 +295,7 @@ def_line(File, Symbol, LineNum, Context) -->
       debug(cscope(parse), '    Field 4 (context): ~s', [Context]) }.
 
 %% parse_call_line_dcg(+Codes, -File, -Caller, -LineNum, -Context, -Callee, +LineNo) is semidet.
-%  Parse: filename<TAB>caller<TAB>line<SPACE>context
+%  Parse: filename<TAB>caller<TAB>line<TAB>context
 parse_call_line_dcg(Codes, File, Caller, LineNum, Context, Callee, LineNo) :-
     debug(cscope(parse), 'Parsing call line ~d', [LineNo]),
     phrase(call_line(FileStr, CallerStr, LineNum, ContextStr), Codes),
@@ -326,14 +326,13 @@ call_line(File, Caller, LineNum, Context) -->
     digits(LineNumCodes),
     { number_codes(LineNum, LineNumCodes),
       debug(cscope(parse), '    Field 3 (line): ~w', [LineNum]) },
-    space_char,    
-    % tab_char, % TODO Should use tab not space
+    tab_char,
     rest_of_line(ContextCodes),
     { string_codes(Context, ContextCodes),
       debug(cscope(parse), '    Field 4 (context): ~s', [Context]) }.
 
 %% parse_symbol_line_dcg(+Codes, -File, -Symbol, -LineNum, -Context, +LineNo) is semidet.
-%  Parse: filename<TAB>symbol<TAB>line<SPACE>context
+%  Parse: filename<TAB>symbol<TAB>line<TAB>context
 parse_symbol_line_dcg(Codes, File, Symbol, LineNum, Context, LineNo) :-
     debug(cscope(parse), 'Parsing symbol line ~d', [LineNo]),
     phrase(symbol_line(FileStr, SymbolStr, LineNum, ContextStr), Codes),
@@ -363,8 +362,7 @@ symbol_line(File, Symbol, LineNum, Context) -->
     digits(LineNumCodes),
     { number_codes(LineNum, LineNumCodes),
       debug(cscope(parse), '    Field 3 (line): ~w', [LineNum]) },
-    space_char,
-    % tab_char, % TODO Should use tab not space
+    tab_char,
     rest_of_line(ContextCodes),
     { string_codes(Context, ContextCodes),
       debug(cscope(parse), '    Field 4 (context): ~s', [Context]) }.

@@ -101,6 +101,14 @@ Once in SWI-Prolog, load the cscope_import module and import the data:
 ```prolog
 ?- ['src/prolog/cscope_import'].
 
+% Import symbol references (creates symbol/4 facts)
+?- import_cscope_symbols(
+     'data/extracted/cscope_symbols.txt',
+     user,
+     [debug(true)]
+   ).
+% Output: import_cscope_symbols: processed=25530, imported=25530, failed=0
+
 % Import definitions (creates def/5 facts)
 ?- import_cscope_defs(
      'data/extracted/cscope_definitions.txt',
@@ -325,11 +333,15 @@ To focus on a specific area, you can filter programmatically before exporting.
 
 ### Parser Errors
 - Check `logs/cscope_import_errors.log` for detailed parse failures
-- Line format should be: `<file><TAB><symbol><TAB><num><SPACE><context>`
+- Line format should be: `<file><TAB><symbol><TAB><num><TAB><context>` (all fields tab-separated)
 - Ensure UTF-8 encoding
 - Use `stop_on_error(true)` option to stop at first error for debugging:
   ```prolog
+  ?- import_cscope_symbols('data/extracted/cscope_symbols.txt', user,
+                          [debug(true), stop_on_error(true)]).
   ?- import_cscope_defs('data/extracted/cscope_definitions.txt', user,
+                        [debug(true), stop_on_error(true)]).
+  ?- import_cscope_calls('data/extracted/cscope_callees.txt', user,
                         [debug(true), stop_on_error(true)]).
   ```
 

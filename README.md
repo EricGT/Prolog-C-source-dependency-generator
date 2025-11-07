@@ -19,6 +19,7 @@ python src/python/generate_cscope_data.py --src /path/to/source --root .
 # Start Prolog and import
 swipl
 ?- ['src/prolog/cscope_import'].
+?- import_cscope_symbols('data/extracted/cscope_symbols.txt', user, []).
 ?- import_cscope_defs('data/extracted/cscope_definitions.txt', user, []).
 ?- import_cscope_calls('data/extracted/cscope_callees.txt', user, []).
 

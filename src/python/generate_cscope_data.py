@@ -465,7 +465,7 @@ def reformat_symbol_line(line: str) -> Optional[str]:
     Reformat a cscope symbol line to tab-separated format with normalized paths.
 
     Input format (space-separated): <filepath> <scope> <line> <context>
-    Output format (tab-separated): <filepath>\t<scope>\t<line> <context>
+    Output format (tab-separated): <filepath>\t<scope>\t<line>\t<context>
 
     Args:
         line: Raw cscope -L -0 output line
@@ -487,9 +487,9 @@ def reformat_symbol_line(line: str) -> Optional[str]:
     # Normalize filepath for Prolog
     filepath = normalize_path_for_prolog(filepath)
 
-    # Return tab-separated format
-    # Format: <filepath>\t<scope>\t<line> <context>
-    return f"{filepath}\t{scope}\t{line_num} {context}"
+    # Return fully tab-separated format
+    # Format: <filepath>\t<scope>\t<line>\t<context>
+    return f"{filepath}\t{scope}\t{line_num}\t{context}"
 
 
 def reformat_callee_line(line: str, caller: str) -> Optional[str]:
@@ -497,7 +497,7 @@ def reformat_callee_line(line: str, caller: str) -> Optional[str]:
     Reformat a cscope callee line to tab-separated format with normalized paths.
 
     Input format (space-separated): <filepath> <callee> <line> <context>
-    Output format (tab-separated): <filepath>\t<caller>\t<line> <context>
+    Output format (tab-separated): <filepath>\t<caller>\t<line>\t<context>
 
     Args:
         line: Raw cscope output line
@@ -520,9 +520,9 @@ def reformat_callee_line(line: str, caller: str) -> Optional[str]:
     # Normalize filepath for Prolog
     filepath = normalize_path_for_prolog(filepath)
 
-    # Return tab-separated format with caller, not callee
-    # Format: <filepath>\t<caller>\t<line> <context>
-    return f"{filepath}\t{caller}\t{line_num} {context}"
+    # Return fully tab-separated format with caller, not callee
+    # Format: <filepath>\t<caller>\t<line>\t<context>
+    return f"{filepath}\t{caller}\t{line_num}\t{context}"
 
 
 def run_cscope_command(
