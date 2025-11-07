@@ -58,4 +58,14 @@ tags
 tags.lock
 .tags
 TAGS
+
+# Project directories (generated data and logs)
+data/extracted/
+data/legacy/
+logs/
+knowledge/
+.claude/settings.local.json
+.vscode/settings.json
 docs/tool notes.md
+src/prolog/cscope_in_dcg.pl
+src/prolog/deps_import_dcg.pl

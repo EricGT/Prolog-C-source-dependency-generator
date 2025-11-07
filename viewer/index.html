@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VDBE Dependency Graph - Cytoscape.js Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+
+        #sidebar {
+            width: 300px;
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #controls {
+            padding: 20px;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        h1 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #4ec9b0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #9cdcfe;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #0e639c;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background: #1177bb;
+        }
+
+        button.secondary {
+            background: #3e3e42;
+        }
+
+        button.secondary:hover {
+            background: #505050;
+        }
+
+        #info {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            font-size: 13px;
+        }
+
+        #info h2 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #4ec9b0;
+        }
+
+        #info .field {
+            margin-bottom: 8px;
+        }
+
+        #info .label {
+            color: #9cdcfe;
+            font-weight: 600;
+        }
+
+        #info .value {
+            color: #ce9178;
+            word-break: break-all;
+        }
+
+        #cy {
+            flex: 1;
+            background: #1e1e1e;
+        }
+
+        .stats {
+            margin-top: 15px;
+            padding: 10px;
+            background: #2d2d30;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            color: #4ec9b0;
+        }
+
+        .dep-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #2d2d30;
+            padding: 10px;
+            border-radius: 3px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .dep-item {
+            padding: 4px;
+            cursor: pointer;
+            border-radius: 2px;
+        }
+
+        .dep-item:hover {
+            background: #3e3e42;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #2d2d30;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <div id="controls">
+            <h1>VDBE Dependency Graph</h1>
+
+            <label for="search">Search Symbol</label>
+            <input type="text" id="search" placeholder="Type symbol name...">
+
+            <label for="layout">Layout</label>
+            <select id="layout">
+                <option value="dagre">Hierarchical (DAG)</option>
+                <option value="breadthfirst">Breadth-First</option>
+                <option value="circle">Circle</option>
+                <option value="grid">Grid</option>
+                <option value="cose">Force-Directed</option>
+            </select>
+
+            <button id="relayout">Apply Layout</button>
+            <button class="secondary" id="fit">Fit to Window</button>
+            <button class="secondary" id="export">Export as PNG</button>
+
+            <div class="stats">
+                <div class="stats-row">
+                    <span>Nodes:</span>
+                    <span id="nodeCount">0</span>
+                </div>
+                <div class="stats-row">
+                    <span>Edges:</span>
+                    <span id="edgeCount">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="info">
+            <h2>Node Information</h2>
+            <p style="color: #858585;">Select a node to view details</p>
+        </div>
+    </div>
+
+    <div id="cy"></div>
+    <div id="loading">Loading graph data...</div>
+
+    <script>
+        let cy;
+
+        // Initialize Cytoscape
+        async function init() {
+            try {
+                // Load JSON data (adjust path as needed)
+                const response = await fetch('../out/vdbe_deps.json');
+                const data = await response.json();
+
+                // Create Cytoscape instance
+                cy = cytoscape({
+                    container: document.getElementById('cy'),
+                    elements: data.elements,
+                    style: [
+                        {
+                            selector: 'node',
+                            style: {
+                                'background-color': '#4ec9b0',
+                                'label': 'data(label)',
+                                'color': '#d4d4d4',
+                                'font-size': '12px',
+                                'text-valign': 'center',
+                                'text-halign': 'center',
+                                'width': 'label',
+                                'height': 'label',
+                                'padding': '10px',
+                                'shape': 'roundrectangle',
+                                'border-width': 2,
+                                'border-color': '#569cd6'
+                            }
+                        },
+                        {
+                            selector: 'node[kind="struct"]',
+                            style: {
+                                'background-color': '#c586c0',
+                                'shape': 'diamond'
+                            }
+                        },
+                        {
+                            selector: 'node[kind="macro"]',
+                            style: {
+                                'background-color': '#dcdcaa',
+                                'shape': 'octagon'
+                            }
+                        },
+                        {
+                            selector: 'edge',
+                            style: {
+                                'width': 2,
+                                'line-color': '#555',
+                                'target-arrow-color': '#555',
+                                'target-arrow-shape': 'triangle',
+                                'curve-style': 'bezier',
+                                'arrow-scale': 1.5
+                            }
+                        },
+                        {
+                            selector: ':selected',
+                            style: {
+                                'background-color': '#ff6b6b',
+                                'line-color': '#ff6b6b',
+                                'target-arrow-color': '#ff6b6b',
+                                'border-color': '#ff6b6b',
+                                'border-width': 3
+                            }
+                        },
+                        {
+                            selector: '.highlighted',
+                            style: {
+                                'background-color': '#ffd93d',
+                                'line-color': '#ffd93d',
+                                'target-arrow-color': '#ffd93d'
+                            }
+                        },
+                        {
+                            selector: '.dimmed',
+                            style: {
+                                'opacity': 0.2
+                            }
+                        }
+                    ],
+                    layout: {
+                        name: 'dagre',
+                        rankDir: 'TB',
+                        nodeSep: 50,
+                        rankSep: 100
+                    }
+                });
+
+                // Update stats
+                document.getElementById('nodeCount').textContent = cy.nodes().length;
+                document.getElementById('edgeCount').textContent = cy.edges().length;
+
+                // Hide loading
+                document.getElementById('loading').style.display = 'none';
+
+                // Setup event handlers
+                setupEventHandlers();
+
+            } catch (error) {
+                document.getElementById('loading').textContent =
+                    'Error loading data. Please ensure vdbe_deps.json exists in out/ directory.';
+                console.error('Error:', error);
+            }
+        }
+
+        function setupEventHandlers() {
+            // Node click
+            cy.on('tap', 'node', function(evt) {
+                const node = evt.target;
+                showNodeInfo(node);
+            });
+
+            // Background click
+            cy.on('tap', function(evt) {
+                if (evt.target === cy) {
+                    clearHighlights();
+                    showDefaultInfo();
+                }
+            });
+
+            // Search
+            document.getElementById('search').addEventListener('input', function(e) {
+                const query = e.target.value.toLowerCase();
+
+                if (query === '') {
+                    clearHighlights();
+                    return;
+                }
+
+                cy.elements().removeClass('highlighted dimmed');
+
+                const matches = cy.nodes().filter(node => {
+                    return node.data('label').toLowerCase().includes(query);
+                });
+
+                if (matches.length > 0) {
+                    cy.elements().addClass('dimmed');
+                    matches.removeClass('dimmed').addClass('highlighted');
+                    cy.fit(matches, 50);
+                }
+            });
+
+            // Relayout
+            document.getElementById('relayout').addEventListener('click', function() {
+                const layoutName = document.getElementById('layout').value;
+                applyLayout(layoutName);
+            });
+
+            // Fit
+            document.getElementById('fit').addEventListener('click', function() {
+                cy.fit(null, 50);
+            });
+
+            // Export (requires cy.png() which needs cytoscape-canvas)
+            document.getElementById('export').addEventListener('click', function() {
+                alert('PNG export requires a server setup. Use browser screenshot for now.');
+            });
+        }
+
+        function showNodeInfo(node) {
+            const data = node.data();
+            const predecessors = node.predecessors('node').map(n => n.data('label'));
+            const successors = node.successors('node').map(n => n.data('label'));
+
+            let html = `
+                <h2>${data.label}</h2>
+                <div class="field">
+                    <span class="label">Kind:</span>
+                    <span class="value">${data.kind || 'unknown'}</span>
+                </div>
+            `;
+
+            if (data.file) {
+                html += `
+                    <div class="field">
+                        <span class="label">File:</span>
+                        <span class="value">${data.file}</span>
+                    </div>
+                `;
+            }
+
+            if (data.line) {
+                html += `
+                    <div class="field">
+                        <span class="label">Line:</span>
+                        <span class="value">${data.line}</span>
+                    </div>
+                `;
+            }
+
+            if (predecessors.length > 0) {
+                html += `
+                    <h2 style="margin-top: 20px;">Called By (${predecessors.length})</h2>
+                    <div class="dep-list">
+                        ${predecessors.map(p => `<div class="dep-item">${p}</div>`).join('')}
+                    </div>
+                `;
+            }
+
+            if (successors.length > 0) {
+                html += `
+                    <h2 style="margin-top: 20px;">Calls (${successors.length})</h2>
+                    <div class="dep-list">
+                        ${successors.map(s => `<div class="dep-item">${s}</div>`).join('')}
+                    </div>
+                `;
+            }
+
+            document.getElementById('info').innerHTML = html;
+
+            // Highlight connected nodes
+            cy.elements().removeClass('highlighted dimmed');
+            cy.elements().addClass('dimmed');
+            node.removeClass('dimmed').addClass('highlighted');
+            node.neighborhood().removeClass('dimmed').addClass('highlighted');
+        }
+
+        function showDefaultInfo() {
+            document.getElementById('info').innerHTML = `
+                <h2>Node Information</h2>
+                <p style="color: #858585;">Select a node to view details</p>
+            `;
+        }
+
+        function clearHighlights() {
+            cy.elements().removeClass('highlighted dimmed');
+        }
+
+        function applyLayout(name) {
+            let layout;
+
+            switch(name) {
+                case 'dagre':
+                    layout = {
+                        name: 'dagre',
+                        rankDir: 'TB',
+                        nodeSep: 50,
+                        rankSep: 100
+                    };
+                    break;
+                case 'breadthfirst':
+                    layout = {
+                        name: 'breadthfirst',
+                        directed: true,
+                        spacingFactor: 1.5
+                    };
+                    break;
+                case 'circle':
+                    layout = { name: 'circle' };
+                    break;
+                case 'grid':
+                    layout = { name: 'grid' };
+                    break;
+                case 'cose':
+                    layout = {
+                        name: 'cose',
+                        idealEdgeLength: 100,
+                        nodeOverlap: 20
+                    };
+                    break;
+                default:
+                    layout = { name: 'dagre' };
+            }
+
+            cy.layout(layout).run();
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
