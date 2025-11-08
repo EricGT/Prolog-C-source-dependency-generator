@@ -69,6 +69,18 @@ src/vdbe.c	sqlite3VdbeExec	1789 rc = sqlite3VdbeMemGrow(pMem, n, 0);
 
 ## Step 2: Import into Prolog
 
+### Understanding Persistence
+
+**Important:** The system now uses persistent storage via SWI-Prolog's `library(persistency)`. Data is stored in `knowledge/cscope_facts.db` and **persists between Prolog sessions**.
+
+**When to import:**
+- **First time**: Database doesn't exist yet
+- **After clearing**: Used `cscope_db:clear_db` to remove data
+- **Source changed**: Regenerated cscope data files
+
+**When NOT to import:**
+- **Subsequent sessions**: The database auto-loads existing data when you load the module
+
 ### Starting SWI-Prolog
 
 **From Git Bash (Windows):**
@@ -94,17 +106,16 @@ Or call it directly with the full path:
 swipl
 ```
 
-### Load and Import Data
-
-Once in SWI-Prolog, load the cscope_import module and import the data:
+### First Time: Load Module and Import Data
 
 ```prolog
 ?- ['src/prolog/cscope_import'].
+% Creates new database: knowledge/cscope_facts.db
+true.
 
-% Import symbol references (creates symbol/4 facts)
+% Import symbol references (creates symbol/4 facts in persistent database)
 ?- import_cscope_symbols(
      'data/extracted/cscope_symbols.txt',
-     user,
      [debug(true)]
    ).
 % Output: import_cscope_symbols: processed=25530, imported=25530, failed=0
@@ -112,18 +123,56 @@ Once in SWI-Prolog, load the cscope_import module and import the data:
 % Import definitions (creates def/5 facts)
 ?- import_cscope_defs(
      'data/extracted/cscope_definitions.txt',
-     user,
      [debug(true)]
    ).
-% Output: import_cscope_defs: processed 1523 lines, succeeded 1523, failed 0
+% Output: import_cscope_defs: processed=1523, imported=1523, failed=0
 
 % Import call relationships (creates calls/5 facts)
 ?- import_cscope_calls(
      'data/extracted/cscope_callees.txt',
-     user,
      [debug(true)]
    ).
-% Output: import_cscope_calls: processed 4892 lines, succeeded 4892, failed 0
+% Output: import_cscope_calls: processed=4892, imported=4892, failed=0
+
+% Verify import
+?- cscope_db:db_statistics.
+Database statistics:
+  Symbols:     25530
+  Definitions: 1523
+  Calls:       4892
+```
+
+### Subsequent Sessions: Auto-Load Existing Data
+
+```prolog
+?- ['src/prolog/cscope_import'].
+Loading database (0.3 MB)...
+Database statistics:
+  Symbols:     25530
+  Definitions: 1523
+  Calls:       4892
+true.
+
+% Data is already loaded! You can query immediately without re-importing.
+```
+
+### Database Management
+
+```prolog
+% View database statistics
+?- cscope_db:db_statistics.
+Database statistics:
+  Symbols:     25530
+  Definitions: 1523
+  Calls:       4892
+
+% Clear database (removes all data - you'll need to re-import)
+?- cscope_db:clear_db.
+Database cleared.
+
+% Compact journal (optimizes file size, keeps data)
+?- cscope_db:compact_journal.
+Journal compacted.
 ```
 
 **Note:** Error logs (if any) will be written to `logs/cscope_import_errors.log`
@@ -134,7 +183,7 @@ Once in SWI-Prolog, load the cscope_import module and import the data:
 
 **Find all leaf functions (no dependencies):**
 ```prolog
-?- leaf_symbols_in(user, Symbol).
+?- leaf_symbols(Symbol).
 Symbol = sqlite3VdbeMemGrow ;
 Symbol = sqlite3VdbeMemSetInt64 ;
 Symbol = sqlite3VdbeMemSetNull ;
@@ -143,7 +192,7 @@ Symbol = sqlite3VdbeMemSetNull ;
 
 **Find what a function calls:**
 ```prolog
-?- calls_in(user, 'sqlite3VdbeExec', Callee).
+?- calls('sqlite3VdbeExec', Callee).
 Callee = sqlite3VdbeMemSetInt64 ;
 Callee = sqlite3VdbeMemGrow ;
 Callee = sqlite3VdbeSerialGet ;
@@ -152,39 +201,39 @@ Callee = sqlite3VdbeSerialGet ;
 
 **Get full dependency cone (transitive):**
 ```prolog
-?- dependency_cone_in(user, 'sqlite3VdbeExec', Deps).
+?- dependency_cone('sqlite3VdbeExec', Deps).
 Deps = [sqlite3VdbeMemGrow, sqlite3VdbeMemSetInt64, ...].
 ```
 
 **Find symbols matching a pattern:**
 ```prolog
-?- symbols_matching(user, "vdbe", Symbol).  % SQLite VDBE symbols
+?- symbols_matching("vdbe", Symbol).  % SQLite VDBE symbols
 Symbol = sqlite3VdbeExec ;
 Symbol = sqlite3VdbeMemGrow ;
 Symbol = Vdbe ;
 ...
 
-?- symbols_matching(user, "parse", Symbol).  % Parser symbols
-?- symbols_matching(user, "Btree", Symbol).  % B-tree symbols
+?- symbols_matching("parse", Symbol).  % Parser symbols
+?- symbols_matching("Btree", Symbol).  % B-tree symbols
 ```
 
 **Get topologically sorted order (leaf-first):**
 ```prolog
-?- conversion_order_in(user, Order).
+?- conversion_order(Order).
 Order = [sqlite3VdbeMemGrow, sqlite3VdbeMemSetInt64, ..., sqlite3VdbeExec].
 ```
 
 **Find symbols matching a pattern in topological order:**
 ```prolog
-?- findall(S, symbols_matching(user, "vdbe", S), MatchedSyms),
-   conversion_order_in(user, AllOrder),
+?- findall(S, symbols_matching("vdbe", S), MatchedSyms),
+   conversion_order(AllOrder),
    intersection(AllOrder, MatchedSyms, FilteredOrder).
 FilteredOrder = [...].  % Matched symbols in leaf-first order
 ```
 
 **Inspect a specific symbol:**
 ```prolog
-?- symbol_def_in(user, File, 'sqlite3VdbeExec', Line, Kind).
+?- symbol_def(File, 'sqlite3VdbeExec', Line, Kind).
 File = 'c:/users/groot/projects/sqlitevdbe/reference/sqlite-src-3510000/src/vdbe.c',
 Line = 1234,
 Kind = function.
@@ -196,19 +245,19 @@ Export the dependency graph for interactive visualization:
 
 ```prolog
 % Export symbols matching a pattern (e.g., VDBE-related)
-?- export_to_cytoscape(user,
+?- export_to_cytoscape(
      'knowledge/vdbe_deps.json',
      [filter("vdbe")]
    ).
 
 % Export parser-related symbols
-?- export_to_cytoscape(user,
+?- export_to_cytoscape(
      'knowledge/parser_deps.json',
      [filter("parse")]
    ).
 
 % Export all functions (may be large!)
-?- export_to_cytoscape(user,
+?- export_to_cytoscape(
      'knowledge/all_deps.json',
      [filter(all), max_nodes(100)]
    ).
@@ -308,19 +357,37 @@ Status code `200` indicates successful file loading. If you see `404`, the file 
 
 ## Prolog Fact Schema Reference
 
+### Persistent Database Storage
+
+All facts are stored in `knowledge/cscope_facts.db` using SWI-Prolog's `library(persistency)`.
+
+**Access predicates:**
+- Query: `cscope_db:def(...)`, `cscope_db:calls(...)`, `cscope_db:symbol(...)`
+- Assert: `cscope_db:assert_def(...)`, etc.
+- Retract: `cscope_db:retract_def(...)`, etc.
+
+**High-level API** (recommended):
+- Use predicates from `cscope_import` module: `calls/2`, `leaf_symbols/1`, `dependency_cone/2`, etc.
+- These automatically query the persistent database
+
 ### def/5 - Symbol Definitions
 ```prolog
-def(File, Symbol, Line, Context, Kind).
+cscope_db:def(File, Symbol, Line, Context, Kind).
 ```
 - **File**: Normalized lowercase file path (forward slashes)
 - **Symbol**: Atom (function name, struct name, macro name)
 - **Line**: Integer line number
 - **Context**: String (source line text)
-- **Kind**: function | struct | typedef | enum | macro | unknown
+- **Kind**: Atom - function | struct | typedef | enum | macro | unknown
+
+**High-level access:**
+```prolog
+?- symbol_def(File, Symbol, Line, Kind).  % Uses persistent database
+```
 
 ### calls/5 - Function Call Relationships
 ```prolog
-calls(File, Caller, Line, Context, Callee).
+cscope_db:calls(File, Caller, Line, Context, Callee).
 ```
 - **File**: Where the call occurs
 - **Caller**: Function making the call
@@ -328,29 +395,35 @@ calls(File, Caller, Line, Context, Callee).
 - **Context**: String (source line containing call)
 - **Callee**: Function being called
 
-### symbol/4 - Symbol References (optional)
+**High-level access:**
 ```prolog
-symbol(File, Symbol, Line, Context).
+?- calls(Caller, Callee).           % Simple 2-arg form
+?- calls_transitive(Caller, Callee). % Transitive closure
 ```
-General symbol usage (from `cscope -L0`).
+
+### symbol/4 - Symbol References
+```prolog
+cscope_db:symbol(File, Symbol, Line, Context).
+```
+General symbol usage (from `cscope -L0`). All symbol occurrences in the codebase.
 
 ## Tips for Dependency Analysis
 
 ### Identify Entry Points
 ```prolog
 % Find entry points for a specific subsystem (e.g., "vdbe", "parse", "btree")
-?- symbols_matching(user, "vdbe", S),
-   \+ calls_in(user, _, S),
-   calls_in(user, S, _).
+?- symbols_matching("vdbe", S),
+   \+ calls(_, S),
+   calls(S, _).
 ```
 Finds symbols matching the pattern that are called by external code but call other functions (likely entry points).
 
 ### Find Isolated Subgraphs
 ```prolog
 % Find leaf symbols with few callers (good starting points)
-?- symbols_matching(user, "vdbe", S),
-   leaf_symbols_in(user, S),
-   findall(Caller, calls_in(user, Caller, S), Callers),
+?- symbols_matching("vdbe", S),
+   leaf_symbols(S),
+   findall(Caller, calls(Caller, S), Callers),
    length(Callers, N),
    N < 3.
 ```
@@ -358,7 +431,7 @@ Finds leaf symbols matching the pattern with few callers (good starting points f
 
 ### Measure Complexity
 ```prolog
-?- dependency_cone_in(user, 'sqlite3VdbeExec', Deps),
+?- dependency_cone('sqlite3VdbeExec', Deps),
    length(Deps, N).
 N = 247.  % This function transitively depends on 247 other symbols
 ```
@@ -380,24 +453,54 @@ To focus on a specific area, you can filter programmatically before exporting.
 - Ensure UTF-8 encoding
 - Use `stop_on_error(true)` option to stop at first error for debugging:
   ```prolog
-  ?- import_cscope_symbols('data/extracted/cscope_symbols.txt', user,
+  ?- import_cscope_symbols('data/extracted/cscope_symbols.txt',
                           [debug(true), stop_on_error(true)]).
-  ?- import_cscope_defs('data/extracted/cscope_definitions.txt', user,
+  ?- import_cscope_defs('data/extracted/cscope_definitions.txt',
                         [debug(true), stop_on_error(true)]).
-  ?- import_cscope_calls('data/extracted/cscope_callees.txt', user,
+  ?- import_cscope_calls('data/extracted/cscope_callees.txt',
                         [debug(true), stop_on_error(true)]).
   ```
+
+### Database Issues
+- If database gets corrupted: Delete `knowledge/cscope_facts.db` and re-import
+- If database is large: Use `cscope_db:compact_journal` to optimize
+- To start fresh: `cscope_db:clear_db` then re-import data
 
 ### Missing Dependencies
 - Macro calls aren't tracked by cscope function call queries
 - Struct field access doesn't create direct dependencies
 - Check `data/extracted/cscope_symbols.txt` for broader symbol tracking
 
+## Workflow Summary
+
+### First Time or After Source Changes
+```
+1. python src/python/generate_cscope_data.py --src <path> --root .
+2. swipl
+3. ['src/prolog/cscope_import'].
+4. import_cscope_symbols('data/extracted/cscope_symbols.txt', []).
+5. import_cscope_defs('data/extracted/cscope_definitions.txt', []).
+6. import_cscope_calls('data/extracted/cscope_callees.txt', []).
+7. Run queries (calls/2, leaf_symbols/1, dependency_cone/2, etc.)
+```
+
+### Subsequent Sessions (Data Already Loaded)
+```
+1. swipl
+2. ['src/prolog/cscope_import'].  % Auto-loads from knowledge/cscope_facts.db
+3. Run queries immediately!
+```
+
+### When to Re-Import
+- Database doesn't exist yet (first time)
+- Used `cscope_db:clear_db` to remove data
+- Source code changed and you regenerated cscope data
+
 ## Next Steps
 
-1. **Analyze your subsystem**: Use `symbols_matching/3` with patterns relevant to your codebase (e.g., "vdbe", "parse", "btree")
-2. **Add annotations**: Extend `def/5` facts with processing status (pending/done)
-3. **Track progress**: Use dynamic predicates to mark analyzed symbols
+1. **Analyze your subsystem**: Use `symbols_matching/2` with patterns relevant to your codebase (e.g., "vdbe", "parse", "btree")
+2. **Export visualizations**: Use `export_to_cytoscape/2` to create interactive graphs
+3. **Track progress**: The persistent database makes it easy to work incrementally
 4. **Generate reports**: Export analysis progress as CSV/HTML
 5. **Customize filters**: Create domain-specific predicates that combine pattern matching with other criteria
 
