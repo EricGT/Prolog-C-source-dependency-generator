@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VDBE Dependency Graph - Cytoscape.js Viewer</title>
+    <title>C Dependency Graph - Cytoscape.js Viewer</title>
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -181,7 +182,10 @@
 <body>
     <div id="sidebar">
         <div id="controls">
-            <h1>VDBE Dependency Graph</h1>
+            <h1>C Dependency Graph</h1>
+
+            <label for="fileInput">Load JSON File</label>
+            <input type="file" id="fileInput" accept=".json" style="margin-bottom: 15px;">
 
             <label for="search">Search Symbol</label>
             <input type="text" id="search" placeholder="Type symbol name...">
@@ -223,12 +227,11 @@
     <script>
         let cy;
 
-        // Initialize Cytoscape
-        async function init() {
+        // Initialize Cytoscape with data
+        async function initGraph(data) {
             try {
-                // Load JSON data (adjust path as needed)
-                const response = await fetch('../out/vdbe_deps.json');
-                const data = await response.json();
+                // Hide loading message
+                document.getElementById('loading').style.display = 'none';
 
                 // Create Cytoscape instance
                 cy = cytoscape({
@@ -244,12 +247,21 @@
                                 'font-size': '12px',
                                 'text-valign': 'center',
                                 'text-halign': 'center',
-                                'width': 'label',
-                                'height': 'label',
+                                'width': function(node) {
+                                    const label = node.data('label') || '';
+                                    const labelLength = label.length;
+                                    const fontSize = 12; // Match the font-size above
+                                    return Math.max(60, (labelLength * (fontSize * 0.6)) + 20);
+                                },
+                                'height': function(node) {
+                                    const fontSize = 12;
+                                    return fontSize + 20;
+                                },
                                 'padding': '10px',
                                 'shape': 'roundrectangle',
                                 'border-width': 2,
-                                'border-color': '#569cd6'
+                                'border-color': '#569cd6',
+                                'text-wrap': 'none'
                             }
                         },
                         {
@@ -314,15 +326,30 @@
                 document.getElementById('nodeCount').textContent = cy.nodes().length;
                 document.getElementById('edgeCount').textContent = cy.edges().length;
 
-                // Hide loading
-                document.getElementById('loading').style.display = 'none';
-
-                // Setup event handlers
-                setupEventHandlers();
+                // Setup event handlers (only once)
+                if (!cy.data('handlersSetup')) {
+                    setupEventHandlers();
+                    cy.data('handlersSetup', true);
+                }
 
             } catch (error) {
+                document.getElementById('loading').textContent = 'Error loading graph data';
+                document.getElementById('loading').style.display = 'block';
+                console.error('Error:', error);
+            }
+        }
+
+        // Load default JSON file
+        async function loadDefaultFile() {
+            try {
+                document.getElementById('loading').textContent = 'Loading default graph data...';
+                document.getElementById('loading').style.display = 'block';
+                const response = await fetch('../knowledge/all_deps.json');
+                const data = await response.json();
+                await initGraph(data);
+            } catch (error) {
                 document.getElementById('loading').textContent =
-                    'Error loading data. Please ensure vdbe_deps.json exists in out/ directory.';
+                    'Error loading data. Please ensure all_deps.json exists in knowledge/ directory.';
                 console.error('Error:', error);
             }
         }
@@ -489,8 +516,32 @@
             cy.layout(layout).run();
         }
 
-        // Initialize on load
-        init();
+        // Handle file input
+        document.getElementById('fileInput').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                document.getElementById('loading').textContent = 'Loading ' + file.name + '...';
+                document.getElementById('loading').style.display = 'block';
+
+                const text = await file.text();
+                const data = JSON.parse(text);
+
+                // Destroy existing graph if it exists
+                if (cy) {
+                    cy.destroy();
+                }
+
+                await initGraph(data);
+            } catch (error) {
+                document.getElementById('loading').textContent = 'Error loading file: ' + error.message;
+                console.error('Error loading file:', error);
+            }
+        });
+
+        // Initialize on load with default file
+        loadDefaultFile();
     </script>
 </body>
 </html>

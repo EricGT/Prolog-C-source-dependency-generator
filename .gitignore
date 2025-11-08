@@ -64,8 +64,10 @@ data/extracted/
 data/legacy/
 logs/
 knowledge/
+out/
 .claude/settings.local.json
 .vscode/settings.json
 docs/tool notes.md
 src/prolog/cscope_in_dcg.pl
 src/prolog/deps_import_dcg.pl
+test/data/basic-deps/src/cscope.files

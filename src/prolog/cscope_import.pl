@@ -12,6 +12,9 @@
     dependency_cone_in/3,           % +Module, +Symbol, -Deps
     symbols_matching/3,             % +Module, +Pattern, ?Symbol
     conversion_order_in/2,          % +Module, -OrderedSymbols
+    compute_dependency_levels/2,    % +Module, -Levels
+    print_dependency_level/2,       % +Module, +LevelNum
+    print_all_dependency_levels/1,  % +Module
 
     % ---- Export to Cytoscape.js ----
     export_to_cytoscape/3           % +Module, +File, +Options
@@ -50,10 +53,10 @@ Options:
 :- use_module(library(debug)).
 
 % Enable debug topics
-:- debug(cscope(parse)).
-:- debug(cscope(import)).
-:- debug(cscope(error)).
-:- debug(cscope(sample)).
+% :- debug(cscope(parse)).
+% :- debug(cscope(import)).
+% :- debug(cscope(error)).
+% :- debug(cscope(sample)).
 
 % ============================================================
 % ==================  CSCOPE DATA IMPORT  ====================
@@ -67,7 +70,7 @@ import_cscope_defs(Path, Mod, Opts) :-
     option(stop_on_error(StopOnError), Opts, false),
     option(error_log(ErrorLog), Opts, 'logs/cscope_import_errors.log'),
 
-    debug(cscope(import), 'Starting import_cscope_defs from ~w', [Path]),
+    % debug(cscope(import), 'Starting import_cscope_defs from ~w', [Path]),
 
     setup_call_cleanup(
         open(Path, read, S, [encoding(utf8)]),
@@ -132,7 +135,7 @@ import_cscope_calls(Path, Mod, Opts) :-
     option(stop_on_error(StopOnError), Opts, false),
     option(error_log(ErrorLog), Opts, 'logs/cscope_import_errors.log'),
 
-    debug(cscope(import), 'Starting import_cscope_calls from ~w', [Path]),
+    % debug(cscope(import), 'Starting import_cscope_calls from ~w', [Path]),
 
     setup_call_cleanup(
         open(Path, read, S, [encoding(utf8)]),
@@ -196,7 +199,7 @@ import_cscope_symbols(Path, Mod, Opts) :-
     option(stop_on_error(StopOnError), Opts, false),
     option(error_log(ErrorLog), Opts, 'logs/cscope_import_errors.log'),
 
-    debug(cscope(import), 'Starting import_cscope_symbols from ~w', [Path]),
+    % debug(cscope(import), 'Starting import_cscope_symbols from ~w', [Path]),
 
     setup_call_cleanup(
         open(Path, read, S, [encoding(utf8)]),
@@ -516,6 +519,129 @@ topo_visit([Node|Rest], AdjList, Acc, Sorted) :-
     topo_visit(Rest, AdjList, [Node|Acc], Sorted).
 
 % ============================================================
+% ==============  DEPENDENCY LEVEL ANALYSIS  =================
+% ============================================================
+
+%% compute_dependency_levels(+Module, -Levels) is det.
+%  Compute dependency levels where Level 1 = leaves, Level 2 = functions
+%  that only call Level 1, etc.
+%
+%  @arg Module  The Prolog module containing the facts
+%  @arg Levels  List of Level-Functions pairs: [1-[f1,f2,...], 2-[f3,f4,...], ...]
+%
+%  Example:
+%    ?- compute_dependency_levels(user, Levels).
+%    Levels = [1-[min,max,abs_val,...], 2-[buffer_init,...], ...].
+compute_dependency_levels(M, Levels) :-
+    % Get all functions
+    findall(F, M:def(_, F, _, _, function), Funcs0),
+    sort(Funcs0, Funcs),
+
+    % Find leaves (Level 1)
+    findall(L, leaf_symbols_in(M, L), Leaves0),
+    sort(Leaves0, Leaves),
+
+    % Compute remaining levels
+    compute_levels_recursive(M, Funcs, Leaves, 1, [1-Leaves], LevelsRev),
+    reverse(LevelsRev, Levels).
+
+%% compute_levels_recursive(+Module, +AllFuncs, +Assigned, +CurrentLevel, +Acc, -Levels)
+compute_levels_recursive(_M, AllFuncs, Assigned, _Level, Acc, Acc) :-
+    % All functions have been assigned to levels
+    sort(Assigned, SortedAssigned),
+    sort(AllFuncs, SortedFuncs),
+    SortedAssigned = SortedFuncs,
+    !.
+compute_levels_recursive(M, AllFuncs, Assigned, Level, Acc, Result) :-
+    % Find functions at next level: those that only call functions in Assigned
+    NextLevel is Level + 1,
+    findall(F, (
+        member(F, AllFuncs),
+        \+ member(F, Assigned),
+        M:def(_, F, _, _, function),
+        % All of F's callees (that are also in AllFuncs) must be in Assigned
+        \+ (calls_in(M, F, Callee), member(Callee, AllFuncs), \+ member(Callee, Assigned))
+    ), NextLevelFuncs0),
+    sort(NextLevelFuncs0, NextLevelFuncs),
+
+    % Check if we found any new functions
+    (   NextLevelFuncs = []
+    ->  % No more levels can be computed (possibly due to cycles or isolated functions)
+        % Add remaining unassigned functions as a final level
+        subtract(AllFuncs, Assigned, Remaining),
+        (   Remaining = []
+        ->  Result = Acc
+        ;   FinalLevel is Level + 1,
+            Result = [FinalLevel-Remaining | Acc]
+        )
+    ;   % Continue with next level
+        append(Assigned, NextLevelFuncs, NewAssigned),
+        compute_levels_recursive(M, AllFuncs, NewAssigned, NextLevel,
+                                [NextLevel-NextLevelFuncs | Acc], Result)
+    ).
+
+%% print_dependency_level(+Module, +LevelNum) is det.
+%  Print all functions at a specific dependency level with their callees
+%
+%  @arg Module   The Prolog module containing the facts
+%  @arg LevelNum The level number to print (1 = leaves, 2 = next level up, etc.)
+%
+%  Example:
+%    ?- print_dependency_level(user, 1).
+%    Level 1 (Leaves):
+%      min, max, abs_val, str_len, str_equal, str_copy
+print_dependency_level(M, LevelNum) :-
+    compute_dependency_levels(M, Levels),
+    (   member(LevelNum-Funcs, Levels)
+    ->  (   LevelNum = 1
+        ->  format('Level ~w (Leaves):~n', [LevelNum]),
+            print_leaf_level(Funcs)
+        ;   format('Level ~w:~n', [LevelNum]),
+            print_non_leaf_level(M, Funcs)
+        )
+    ;   format('Level ~w does not exist~n', [LevelNum])
+    ).
+
+%% print_leaf_level(+Functions)
+print_leaf_level(Funcs) :-
+    format('  ~w~n', [Funcs]).
+
+%% print_non_leaf_level(+Module, +Functions)
+print_non_leaf_level(_, []).
+print_non_leaf_level(M, [F|Rest]) :-
+    findall(C, calls_in(M, F, C), Callees),
+    (   Callees = []
+    ->  format('  ~w~n', [F])
+    ;   atomic_list_concat(Callees, ', ', CalleeStr),
+        format('  ~w -> ~w~n', [F, CalleeStr])
+    ),
+    print_non_leaf_level(M, Rest).
+
+%% print_all_dependency_levels(+Module) is det.
+%  Print all dependency levels with formatting
+%
+%  @arg Module The Prolog module containing the facts
+%
+%  Example:
+%    ?- print_all_dependency_levels(user).
+%    Level 1 (Leaves):
+%      [min, max, abs_val, str_len, str_equal, str_copy]
+%    Level 2:
+%      buffer_init -> max
+%      buffer_resize -> min, abs_val
+%      ...
+print_all_dependency_levels(M) :-
+    compute_dependency_levels(M, Levels),
+    reverse(Levels, ReversedLevels),  % Print from highest to lowest
+    print_levels(M, ReversedLevels).
+
+print_levels(_, []).
+print_levels(M, [Level-_Funcs|Rest]) :-
+    print_dependency_level(M, Level),
+    nl,
+    print_levels(M, Rest).
+
+% ============================================================
 % ===============  CYTOSCAPE.JS JSON EXPORT  =================
 % ============================================================
 
@@ -542,9 +668,12 @@ export_to_cytoscape(M, File, Options) :-
     sort(Symbols0, Symbols1),
     (   MaxNodes == infinite
     ->  Symbols = Symbols1
-    ;   length(Prefix, MaxNodes),
-        append(Prefix, _, Symbols1),
-        Symbols = Prefix
+    ;   length(Symbols1, Len),
+        (   Len =< MaxNodes
+        ->  Symbols = Symbols1
+        ;   length(Symbols, MaxNodes),
+            append(Symbols, _, Symbols1)
+        )
     ),
 
     % Build node list

@@ -251,11 +251,54 @@ The output is a standard Cytoscape.js elements JSON:
 
 See `viewer/index.html` for a complete interactive visualization application.
 
+### Viewing the Graph Locally
+
+Due to CORS (Cross-Origin Resource Sharing) restrictions, browsers block loading JSON files via the `file://` protocol. You must serve the files through a local HTTP server.
+
+**1. Start a local HTTP server:**
+
+```bash
+# From project root directory
+python -m http.server 8000
+```
+
+You should see output like:
+```
+Serving HTTP on :: port 8000 (http://[::]:8000/) ...
+```
+
+**2. Open the viewer in your browser:**
+
+Navigate to: **`http://localhost:8000/viewer/index.html`**
+
+**Alternative access:**
+- From another device on the same network: `http://<your-ip>:8000/viewer/index.html`
+  (Replace `<your-ip>` with your computer's local IP address, e.g., `192.168.1.100`)
+
+**3. Using the viewer:**
+
+The viewer will automatically load `knowledge/all_deps.json` by default.
+
+**Important notes:**
+- The terminal running the HTTP server must stay open while using the viewer
+- To stop the server: Press `Ctrl+C` in the terminal
+- If you see errors, press `F12` to open browser DevTools and check the Console tab for error messages
+
+**Expected server log output:**
+```
+::1 - - [08/Nov/2025 01:41:48] "GET /viewer/index.html HTTP/1.1" 200 -
+::1 - - [08/Nov/2025 01:41:48] "GET /knowledge/all_deps.json HTTP/1.1" 200 -
+::1 - - [08/Nov/2025 01:47:29] "GET /favicon.ico HTTP/1.1" 200 -
+```
+
+Status code `200` indicates successful file loading. If you see `404`, the file was not found.
+
 ### Quick Start
 
-1. Open `viewer/index.html` in a browser
-2. Load your exported JSON file (e.g., `knowledge/vdbe_deps.json`)
-3. Interact with the graph:
+1. Ensure `knowledge/all_deps.json` exists (export from Prolog first if needed)
+2. Start the HTTP server (see above)
+3. Open `http://localhost:8000/viewer/index.html`
+4. Interact with the graph:
    - **Zoom**: Mouse wheel
    - **Pan**: Click and drag
    - **Select node**: Click
