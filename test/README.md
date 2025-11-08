@@ -61,10 +61,19 @@ python test/scripts/run_basic_deps_test.py
 
 [0/3] Cleaning up previous test runs...
 [1/3] Generating cscope data...
-cscope_symbols.txt:51
-cscope_callers.txt:0
+cscope_symbols.txt:108
+cscope_callers.txt:42
 cscope_includes.txt:26
 [2/3] Importing data and running Prolog tests...
+Created new database: knowledge/cscope_facts.db
+import_cscope_symbols: processed=109, imported=108, failed=0
+import_cscope_defs: processed=28, imported=27, failed=0
+import_cscope_calls: processed=46, imported=45, failed=0
+Database statistics:
+  Symbols:     108
+  Definitions: 27
+  Calls:       45
+
 [PASS] Found 6 leaf functions
 [PASS] Topological order computed
        (Order length: 67 functions)
@@ -74,6 +83,11 @@ cscope_includes.txt:26
 
 [3/3] All tests passed!
 ```
+
+**Note:** The test now uses persistent storage via `library(persistency)`. Data is stored in `knowledge/cscope_facts.db` and persists between sessions. The import counts show:
+- 108 symbols (all symbol references in the codebase)
+- 27 definitions (all function definitions)
+- 45 calls (all function call relationships)
 
 ## Manual Testing
 
@@ -89,32 +103,32 @@ swipl
 
 ```prolog
 ?- ['src/prolog/cscope_import'].
-?- import_cscope_symbols('data/extracted/cscope_symbols.txt', user, []).
-?- import_cscope_defs('data/extracted/cscope_definitions.txt', user, []).
-?- import_cscope_calls('data/extracted/cscope_callees.txt', user, []).
+?- import_cscope_symbols('data/extracted/cscope_symbols.txt', []).
+?- import_cscope_defs('data/extracted/cscope_definitions.txt', []).
+?- import_cscope_calls('data/extracted/cscope_callees.txt', []).
 
 % Find all leaf functions (should be 6)
-?- findall(S, leaf_symbols_in(user, S), Leaves), length(Leaves, N).
+?- findall(S, leaf_symbols(S), Leaves), length(Leaves, N).
 N = 6,
 Leaves = [min, max, abs_val, str_len, str_equal, str_copy].
 
 % Get topological order (includes all symbols, may have duplicates)
-?- conversion_order_in(user, Order), length(Order, Len).
+?- conversion_order(Order), length(Order, Len).
 Len = 67.
 % Note: Order includes library functions (malloc, realloc, if) and may have duplicates
 
 % Analyze main's dependencies (should be 24)
-?- dependency_cone_in(user, main, Deps), length(Deps, N).
+?- dependency_cone(main, Deps), length(Deps, N).
 N = 24.
 % Includes: 21 user functions + 3 library functions (malloc, realloc, if)
 
 % Verify DAG structure - diamond dependency (multiple paths to same function)
-?- findall(C, calls_in(user, processor_init, C), Callees).
+?- findall(C, calls(processor_init, C), Callees).
 Callees = [parse_init, format_init].
 % Both parse_init and format_init call buffer_init (converging paths)
-?- findall(C, calls_in(user, parse_init, C), ParseCallees).
+?- findall(C, calls(parse_init, C), ParseCallees).
 ParseCallees = [buffer_init].
-?- findall(C, calls_in(user, format_init, C), FormatCallees).
+?- findall(C, calls(format_init, C), FormatCallees).
 FormatCallees = [buffer_init].
 % Diamond structure:
 %   processor_init
@@ -122,74 +136,24 @@ FormatCallees = [buffer_init].
 %       └── format_init ─┴──> buffer_init
 
 % Test transitive calls (6 levels deep)
-?- calls_transitive_in(user, main, min).
+?- calls_transitive(main, min).
 true.
 % Note: May return multiple solutions if there are multiple call paths
 
-% Compute dependency levels (leaves = level 1)
-?- compute_dependency_levels(user, Levels).
-Levels = [1-[abs_val,max,min,str_copy,str_equal,str_len],
-          2-[buffer_init,buffer_resize,format_escape,parse_string,validate_length],
-          3-[analyzer_check,format_init,format_output,parse_init,parse_token,processor_finalize,validate_content],
-          4-[analyzer_report,analyzer_setup,error_handler,processor_init,processor_run],
-          5-[cleanup,initialize,process],
-          6-[main]].
+% View database statistics
+?- cscope_db:db_statistics.
+Database statistics:
+  Symbols:     108
+  Definitions: 27
+  Calls:       45
 
-% Print a specific level
-?- print_dependency_level(user, 1).
-Level 1 (Leaves):
-  [abs_val,max,min,str_copy,str_equal,str_len]
+% Clear database if needed
+?- cscope_db:clear_db.
+Database cleared.
 
-?- print_dependency_level(user, 2).
-Level 2:
-  buffer_init -> max, malloc
-  buffer_resize -> abs_val, min, realloc
-  format_escape -> if, if
-  parse_string -> if, str_copy
-  validate_length -> min, str_len
-
-?- print_dependency_level(user, 6).
-Level 6:
-  main -> cleanup, initialize, process
-
-% Print all levels (from top to bottom)
-?- print_all_dependency_levels(user).
-Level 6:
-  main -> cleanup, initialize, process
-
-Level 5:
-  cleanup -> processor_finalize, analyzer_report
-  initialize -> processor_init, analyzer_setup
-  process -> processor_run, analyzer_check
-
-Level 4:
-  analyzer_report -> format_output, format_escape
-  analyzer_setup -> parse_init, format_init
-  error_handler -> format_init, format_escape, validate_content
-  processor_init -> parse_init, format_init
-  processor_run -> parse_token, format_output
-
-Level 3:
-  analyzer_check -> if, parse_string
-  format_init -> buffer_init
-  format_output -> if, buffer_resize
-  parse_init -> buffer_init
-  parse_token -> if, buffer_resize
-  processor_finalize -> parse_string, format_escape
-  validate_content -> str_equal, str_len, if, buffer_resize
-
-Level 2:
-  buffer_init -> max, malloc
-  buffer_resize -> abs_val, min, realloc
-  format_escape -> if, if
-  parse_string -> if, str_copy
-  validate_length -> min, str_len
-
-Level 1 (Leaves):
-  [abs_val,max,min,str_copy,str_equal,str_len]
-
-Note: Library functions (malloc, realloc, if) are included in the call lists
-      but are not user-defined functions, so they don't appear in the level structure.
+% Compact journal to reduce file size
+?- cscope_db:compact_journal.
+Journal compacted.
 ```
 
 ## Test Data Details
