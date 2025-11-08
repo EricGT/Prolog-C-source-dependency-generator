@@ -101,12 +101,34 @@ python src/python/generate_cscope_data.py --src test/data/basic-deps --root .
 swipl
 ```
 
+### First Time Setup (or after database cleared)
+
 ```prolog
 ?- ['src/prolog/cscope_import'].
+% The database auto-loads if it exists. If empty or doesn't exist, import data:
+
 ?- import_cscope_symbols('data/extracted/cscope_symbols.txt', []).
 ?- import_cscope_defs('data/extracted/cscope_definitions.txt', []).
 ?- import_cscope_calls('data/extracted/cscope_callees.txt', []).
+```
 
+### Subsequent Sessions (database already populated)
+
+```prolog
+?- ['src/prolog/cscope_import'].
+Loading database (0.0 MB)...
+Database statistics:
+  Symbols:     108
+  Definitions: 27
+  Calls:       45
+true.
+
+% Data is already loaded! You can query immediately without re-importing.
+```
+
+### Querying the Database
+
+```prolog
 % Find all leaf functions (should be 6)
 ?- findall(S, leaf_symbols(S), Leaves), length(Leaves, N).
 N = 6,
@@ -147,13 +169,47 @@ Database statistics:
   Definitions: 27
   Calls:       45
 
-% Clear database if needed
+% Clear database (removes all data, you'll need to re-import)
 ?- cscope_db:clear_db.
 Database cleared.
 
-% Compact journal to reduce file size
+% Compact journal to reduce file size (keeps data, just optimizes storage)
 ?- cscope_db:compact_journal.
 Journal compacted.
+
+% Re-import after clearing or when data files change
+?- import_cscope_symbols('data/extracted/cscope_symbols.txt', []).
+?- import_cscope_defs('data/extracted/cscope_definitions.txt', []).
+?- import_cscope_calls('data/extracted/cscope_callees.txt', []).
+```
+
+### Understanding Persistence
+
+**Key Points:**
+- The database is stored in `knowledge/cscope_facts.db` and **persists between Prolog sessions**
+- When you load the module with `['src/prolog/cscope_import']`, it **automatically loads** existing data
+- You only need to run `import_cscope_*` commands when:
+  - The database doesn't exist yet (first time)
+  - You cleared the database with `clear_db`
+  - The source code changed and you regenerated cscope data
+- The database is a journal file that grows over time - use `compact_journal/0` periodically to optimize it
+
+**Typical Workflow:**
+
+```
+First time or after source changes:
+  1. python src/python/generate_cscope_data.py --src <path> --root .
+  2. swipl
+  3. ['src/prolog/cscope_import'].  % Creates/loads database
+  4. import_cscope_symbols(...).     % Import data (ONLY if new/changed)
+  5. import_cscope_defs(...).
+  6. import_cscope_calls(...).
+  7. Run queries...
+
+Subsequent sessions (data unchanged):
+  1. swipl
+  2. ['src/prolog/cscope_import'].  % Auto-loads existing data
+  3. Run queries immediately!       % No import needed
 ```
 
 ## Test Data Details
