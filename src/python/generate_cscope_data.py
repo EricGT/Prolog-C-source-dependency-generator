@@ -418,8 +418,8 @@ def extract_definitions_from_symbols(symbols_file: Path, logger: Optional[Logger
                 if not line:
                     continue
 
-                # Parse: <filepath> <scope> <line> <context>
-                parts = line.split(' ', 3)
+                # Parse: <filepath>\t<scope>\t<line>\t<context>
+                parts = line.split('\t', 3)
                 if len(parts) < 4:
                     continue
 
@@ -434,7 +434,7 @@ def extract_definitions_from_symbols(symbols_file: Path, logger: Optional[Logger
                     # Check if context looks like a function definition
                     if '(' in context:
                         seen_functions.add(scope)
-                        definitions.append(f"{filepath}\t{scope}\t{line_num} {context}")
+                        definitions.append(f"{filepath}\t{scope}\t{line_num}\t{context}")
 
                 # Handle global definitions (structs, typedefs, enums, macros)
                 elif scope == '<global>':
@@ -444,7 +444,7 @@ def extract_definitions_from_symbols(symbols_file: Path, logger: Optional[Logger
                         symbol, kind = result
                         # Only include non-function global definitions
                         if kind != 'function':
-                            definitions.append(f"{filepath}\t{symbol}\t{line_num} {context}")
+                            definitions.append(f"{filepath}\t{symbol}\t{line_num}\t{context}")
 
     except Exception as e:
         if logger:
@@ -909,28 +909,28 @@ def generate_cscope_data(
                 logger.log_warning(f"Database test query failed: {test_output}")
 
     # Step 2-5: Extract various types of data
-    # Note: Using '.*' regex pattern instead of '*' to match all symbols
-    # The '*' wildcard doesn't work as expected in cscope -L mode
+    # Note: Using '[a-zA-Z_].*' regex pattern to match all C identifiers
+    # Plain '.*' doesn't work reliably in cscope (misses symbols starting with certain letters)
     # Use -d flag to use existing database without rebuilding
     extractions = [
         {
             'step': 2,
             'name': 'symbols',
-            'args': ['-d', '-L', '-0', '.*'],
+            'args': ['-d', '-L', '-0', '[a-zA-Z_].*'],
             'output': 'cscope_symbols.txt',
             'description': 'Symbol references'
         },
         {
             'step': 3,
             'name': 'callers',
-            'args': ['-d', '-L', '-3', '.*'],
+            'args': ['-d', '-L', '-3', '[a-zA-Z_].*'],
             'output': 'cscope_callers.txt',
             'description': 'Reverse calls'
         },
         {
             'step': 4,
             'name': 'includes',
-            'args': ['-d', '-L', '-8', '.*'],
+            'args': ['-d', '-L', '-8', '[a-zA-Z_].*'],
             'output': 'cscope_includes.txt',
             'description': 'Include relationships'
         }
@@ -1091,9 +1091,9 @@ def generate_cscope_data(
             try:
                 with open(symbols_file, 'r', encoding='utf-8', errors='ignore') as f:
                     for line in f:
-                        # Format: filename scope linenum context
+                        # Format: filename\tscope\tlinenum\tcontext
                         # where scope is either "<global>" or a function name
-                        parts = line.strip().split(maxsplit=3)
+                        parts = line.strip().split('\t', 3)
                         if len(parts) >= 4:
                             scope = parts[1]
                             # If the scope is not <global>, it's a function name

@@ -32,6 +32,7 @@ def cleanup_previous_runs(project_root: Path):
     cleanup_paths = [
         project_root / 'data' / 'extracted',
         project_root / 'logs',
+        project_root / 'knowledge' / 'cscope_facts.db',
         project_root / 'test' / 'data' / 'basic-deps' / 'src' / 'cscope.files',
         project_root / 'test' / 'data' / 'basic-deps' / 'src' / 'cscope.out',
         project_root / 'test' / 'data' / 'basic-deps' / 'src' / 'cscope.in.out',
@@ -106,13 +107,17 @@ def main():
     prolog_script = """
     ['src/prolog/cscope_import'],
 
-    % Import all data
-    import_cscope_symbols('data/extracted/cscope_symbols.txt', user, []),
-    import_cscope_defs('data/extracted/cscope_definitions.txt', user, []),
-    import_cscope_calls('data/extracted/cscope_callees.txt', user, []),
+    % Import all data (now uses persistent storage)
+    import_cscope_symbols('data/extracted/cscope_symbols.txt', [debug(true)]),
+    import_cscope_defs('data/extracted/cscope_definitions.txt', [debug(true)]),
+    import_cscope_calls('data/extracted/cscope_callees.txt', [debug(true)]),
+
+    % Show database stats after import
+    cscope_db:db_statistics,
+    nl,
 
     % Test 1: Count leaf functions
-    findall(S, leaf_symbols_in(user, S), Leaves),
+    findall(S, leaf_symbols(S), Leaves),
     length(Leaves, LeafCount),
     (LeafCount = 6 ->
         writeln('[PASS] Found 6 leaf functions')
@@ -120,7 +125,7 @@ def main():
         format('[FAIL] Expected 6 leaves, got ~w~n', [LeafCount])),
 
     % Test 2: Verify topological order exists
-    (conversion_order_in(user, Order) ->
+    (conversion_order(Order) ->
         (writeln('[PASS] Topological order computed'),
          length(Order, OrderLen),
          format('       (Order length: ~w functions)~n', [OrderLen]))
@@ -128,7 +133,7 @@ def main():
         writeln('[FAIL] Could not compute topological order')),
 
     % Test 3: Check main's dependency cone
-    dependency_cone_in(user, main, Deps),
+    dependency_cone(main, Deps),
     length(Deps, DepCount),
     (DepCount = 24 ->
         writeln('[PASS] main has 24 dependencies')
@@ -136,7 +141,7 @@ def main():
         format('[FAIL] Expected 24 deps for main, got ~w~n', [DepCount])),
 
     % Test 4: Multi-dependency DAG structure
-    findall(C, calls_in(user, processor_init, C), PICallees),
+    findall(C, calls(processor_init, C), PICallees),
     length(PICallees, PICount),
     (PICount = 2 ->
         writeln('[PASS] processor_init calls 2 functions (DAG structure)')
@@ -144,7 +149,7 @@ def main():
         format('[FAIL] Expected processor_init to call 2 funcs, got ~w~n', [PICount])),
 
     % Test 5: Transitive dependencies
-    (calls_transitive_in(user, main, min) ->
+    (calls_transitive(main, min) ->
         writeln('[PASS] main transitively calls min (6 levels deep)')
     ;
         writeln('[FAIL] main should transitively call min')),
