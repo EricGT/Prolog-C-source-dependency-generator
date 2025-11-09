@@ -62,8 +62,9 @@ TAGS
 # Project directories (generated data and logs)
 data/extracted/
 data/legacy/
-logs/
+examples/
 knowledge/
+logs/
 out/
 .claude/settings.local.json
 .vscode/settings.json
@@ -72,3 +73,5 @@ src/prolog/cscope_in_dcg.pl
 src/prolog/deps_import_dcg.pl
 test/data/basic-deps/src/cscope.files
 test_output.log
+docs/prolog-dcg-resources.md
+temp/
