@@ -8,6 +8,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape-cose-bilkent@4.1.0/cytoscape-cose-bilkent.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape-fcose@2.2.0/cytoscape-fcose.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cytoscape-navigator@1.3.3/cytoscape.js-navigator.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cytoscape-navigator@1.3.3/cytoscape.js-navigator.css">
     <style>
         * {
             margin: 0;
@@ -84,6 +88,41 @@
 
         button.secondary:hover {
             background: #505050;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #3e3e42;
+        }
+
+        button:disabled:hover {
+            background: #3e3e42;
+        }
+
+        .spinner {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #ffffff;
+            border-radius: 50%;
+            width: 14px;
+            height: 14px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .spinner.overlay {
+            width: 40px;
+            height: 40px;
+            border-width: 4px;
+            margin-left: 0;
+            margin-top: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         #info {
@@ -177,6 +216,357 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #666;
         }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #3e3e42;
+            margin-bottom: 15px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            background: #2d2d30;
+            border: none;
+            color: #9cdcfe;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        .tab:hover {
+            background: #3e3e42;
+        }
+
+        .tab.active {
+            background: #0e639c;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Zoom controls */
+        .zoom-controls {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        .zoom-controls button {
+            width: 35px;
+            padding: 8px;
+            margin: 0;
+        }
+
+        .zoom-level {
+            flex: 1;
+            text-align: center;
+            font-size: 12px;
+            color: #9cdcfe;
+        }
+
+        /* Minimap */
+        #minimap {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            height: 150px;
+            background: rgba(37, 37, 38, 0.9);
+            border: 2px solid #3e3e42;
+            border-radius: 5px;
+            z-index: 100;
+        }
+
+        #minimap canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Theme toggle */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
+
+        /* Light theme */
+        body.light-theme {
+            background: #f3f3f3;
+            color: #333;
+        }
+
+        body.light-theme #sidebar {
+            background: #fff;
+            border-right: 1px solid #ccc;
+        }
+
+        body.light-theme #controls {
+            border-bottom: 1px solid #ccc;
+        }
+
+        body.light-theme h1 {
+            color: #007acc;
+        }
+
+        body.light-theme label {
+            color: #007acc;
+        }
+
+        body.light-theme input[type="text"], body.light-theme select {
+            background: #fff;
+            border: 1px solid #ccc;
+            color: #333;
+        }
+
+        body.light-theme button {
+            background: #007acc;
+        }
+
+        body.light-theme button:hover {
+            background: #005a9e;
+        }
+
+        body.light-theme button.secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        body.light-theme button.secondary:hover {
+            background: #d0d0d0;
+        }
+
+        body.light-theme .stats {
+            background: #f0f0f0;
+        }
+
+        body.light-theme #cy {
+            background: #f3f3f3;
+        }
+
+        body.light-theme .tab {
+            background: #f0f0f0;
+            color: #007acc;
+        }
+
+        body.light-theme .tab:hover {
+            background: #e0e0e0;
+        }
+
+        body.light-theme .tab.active {
+            background: #007acc;
+            color: white;
+        }
+
+        body.light-theme #info {
+            background: #fff;
+        }
+
+        body.light-theme #info h2 {
+            color: #007acc;
+        }
+
+        body.light-theme .dep-list {
+            background: #f0f0f0;
+        }
+
+        body.light-theme .dep-item:hover {
+            background: #e0e0e0;
+        }
+
+        body.light-theme #minimap {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #ccc;
+        }
+
+        /* Checkboxes */
+        .filter-group {
+            margin-bottom: 15px;
+        }
+
+        .filter-group label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        .filter-group input[type="checkbox"] {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+
+        /* Search results */
+        .search-results {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #2d2d30;
+            border-radius: 3px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .search-result-item {
+            padding: 8px;
+            cursor: pointer;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .search-result-item:hover {
+            background: #3e3e42;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-count {
+            font-size: 11px;
+            color: #858585;
+            margin-top: 5px;
+        }
+
+        body.light-theme .search-results {
+            background: #f0f0f0;
+        }
+
+        body.light-theme .search-result-item {
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        body.light-theme .search-result-item:hover {
+            background: #e0e0e0;
+        }
+
+        /* Path finding mode indicator */
+        .mode-indicator {
+            background: #ffd93d;
+            color: #1e1e1e;
+            padding: 10px;
+            border-radius: 3px;
+            margin-bottom: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        /* Statistics */
+        .stat-item {
+            background: #2d2d30;
+            padding: 10px;
+            border-radius: 3px;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+
+        .stat-item h3 {
+            font-size: 13px;
+            color: #4ec9b0;
+            margin-bottom: 8px;
+        }
+
+        .stat-item .stat-list {
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .stat-list-item {
+            padding: 4px;
+            cursor: pointer;
+            border-radius: 2px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .stat-list-item:hover {
+            background: #3e3e42;
+        }
+
+        body.light-theme .stat-item {
+            background: #f0f0f0;
+        }
+
+        body.light-theme .stat-item h3 {
+            color: #007acc;
+        }
+
+        body.light-theme .stat-list-item:hover {
+            background: #e0e0e0;
+        }
+
+        /* Help section */
+        .help-section {
+            margin-bottom: 20px;
+        }
+
+        .help-section h3 {
+            font-size: 13px;
+            color: #4ec9b0;
+            margin-bottom: 8px;
+        }
+
+        .help-section p, .help-section ul {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #d4d4d4;
+            margin-bottom: 10px;
+        }
+
+        .help-section ul {
+            padding-left: 20px;
+        }
+
+        .help-section li {
+            margin-bottom: 5px;
+        }
+
+        .help-section code {
+            background: #2d2d30;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #ce9178;
+        }
+
+        body.light-theme .help-section h3 {
+            color: #007acc;
+        }
+
+        body.light-theme .help-section p,
+        body.light-theme .help-section ul {
+            color: #333;
+        }
+
+        body.light-theme .help-section code {
+            background: #f0f0f0;
+            color: #d73a49;
+        }
+
+        /* Slider for simplify mode */
+        .slider-control {
+            margin-bottom: 15px;
+        }
+
+        .slider-control input[type="range"] {
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        .slider-value {
+            font-size: 11px;
+            color: #858585;
+            text-align: right;
+        }
     </style>
 </head>
 <body>
@@ -184,33 +574,168 @@
         <div id="controls">
             <h1>C Dependency Graph</h1>
 
-            <label for="fileInput">Load JSON File</label>
-            <input type="file" id="fileInput" accept=".json" style="margin-bottom: 15px;">
+            <!-- Tab Navigation -->
+            <div class="tabs">
+                <button class="tab active" data-tab="controls-tab">Controls</button>
+                <button class="tab" data-tab="filters-tab">Filters</button>
+                <button class="tab" data-tab="stats-tab">Stats</button>
+                <button class="tab" data-tab="help-tab">Help</button>
+            </div>
 
-            <label for="search">Search Symbol</label>
-            <input type="text" id="search" placeholder="Type symbol name...">
+            <!-- Controls Tab -->
+            <div id="controls-tab" class="tab-content active">
+                <label for="fileInput">Load JSON File</label>
+                <input type="file" id="fileInput" accept=".json" style="margin-bottom: 15px;">
 
-            <label for="layout">Layout</label>
-            <select id="layout">
-                <option value="dagre">Hierarchical (DAG)</option>
-                <option value="breadthfirst">Breadth-First</option>
-                <option value="circle">Circle</option>
-                <option value="grid">Grid</option>
-                <option value="cose">Force-Directed</option>
-            </select>
+                <label for="search">Search Symbol</label>
+                <input type="text" id="search" placeholder="Type symbol name...">
+                <div id="searchResults" class="search-results" style="display: none;"></div>
+                <div id="searchCount" class="search-result-count"></div>
 
-            <button id="relayout">Apply Layout</button>
-            <button class="secondary" id="fit">Fit to Window</button>
-            <button class="secondary" id="export">Export as PNG</button>
-
-            <div class="stats">
-                <div class="stats-row">
-                    <span>Nodes:</span>
-                    <span id="nodeCount">0</span>
+                <div class="zoom-controls">
+                    <button id="zoomOut" disabled title="Zoom Out">-</button>
+                    <span class="zoom-level" id="zoomLevel">100%</span>
+                    <button id="zoomIn" disabled title="Zoom In">+</button>
+                    <button id="zoomReset" disabled title="Reset Zoom">⟲</button>
                 </div>
-                <div class="stats-row">
-                    <span>Edges:</span>
-                    <span id="edgeCount">0</span>
+
+                <label for="layout">Layout</label>
+                <select id="layout">
+                    <option value="dagre">Hierarchical (DAG)</option>
+                    <option value="breadthfirst">Breadth-First</option>
+                    <option value="circle">Circle</option>
+                    <option value="grid">Grid</option>
+                    <option value="cose">Force-Directed (CoSE)</option>
+                    <option value="cose-bilkent">Force-Directed (CoSE-Bilkent)</option>
+                    <option value="fcose">Force-Directed (fCoSE)</option>
+                    <option value="concentric">Concentric</option>
+                </select>
+
+                <button id="relayout" disabled>Apply Layout<span id="buttonSpinner" class="spinner" style="display: none;"></span></button>
+                <button class="secondary" id="fit" disabled>Fit to Window</button>
+                <button class="secondary" id="saveLayout" disabled>Save Layout</button>
+                <button class="secondary" id="loadLayout" disabled>Load Layout</button>
+                <button class="secondary" id="export" disabled>Export PNG</button>
+                <button class="secondary" id="exportSvg" disabled>Export SVG</button>
+
+                <div class="theme-toggle">
+                    <label>Theme</label>
+                    <button class="secondary" id="themeToggle">Switch to Light</button>
+                </div>
+            </div>
+
+            <!-- Filters Tab -->
+            <div id="filters-tab" class="tab-content">
+                <div id="pathModeIndicator" class="mode-indicator" style="display: none;">
+                    Path Finding Mode: Click two nodes
+                </div>
+
+                <button class="secondary" id="pathMode" disabled>Find Path Between Nodes</button>
+                <button class="secondary" id="clearPath" disabled style="display: none;">Clear Path</button>
+
+                <h2 style="font-size: 14px; margin-top: 20px; margin-bottom: 10px; color: #4ec9b0;">Node Types</h2>
+                <div class="filter-group">
+                    <label>
+                        <input type="checkbox" id="filterFunction" checked>
+                        <span>Functions</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterStruct" checked>
+                        <span>Structs</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterMacro" checked>
+                        <span>Macros</span>
+                    </label>
+                </div>
+
+                <h2 style="font-size: 14px; margin-top: 20px; margin-bottom: 10px; color: #4ec9b0;">Simplify Graph</h2>
+                <div class="slider-control">
+                    <label for="degreeFilter">Hide nodes with degree ≤</label>
+                    <input type="range" id="degreeFilter" min="0" max="10" value="0" disabled>
+                    <div class="slider-value" id="degreeValue">0 (show all)</div>
+                </div>
+
+                <h2 style="font-size: 14px; margin-top: 20px; margin-bottom: 10px; color: #4ec9b0;">Color by File</h2>
+                <button class="secondary" id="colorByFile" disabled>Apply File Coloring</button>
+                <button class="secondary" id="resetColors" disabled>Reset Colors</button>
+            </div>
+
+            <!-- Statistics Tab -->
+            <div id="stats-tab" class="tab-content">
+                <div class="stats">
+                    <div class="stats-row">
+                        <span>Total Nodes:</span>
+                        <span id="nodeCount">0</span>
+                    </div>
+                    <div class="stats-row">
+                        <span>Total Edges:</span>
+                        <span id="edgeCount">0</span>
+                    </div>
+                    <div class="stats-row">
+                        <span>Visible Nodes:</span>
+                        <span id="visibleNodeCount">0</span>
+                    </div>
+                </div>
+
+                <div id="topCallers" class="stat-item">
+                    <h3>Most Called (Top 10)</h3>
+                    <div class="stat-list"></div>
+                </div>
+
+                <div id="topCallees" class="stat-item">
+                    <h3>Calls Most (Top 10)</h3>
+                    <div class="stat-list"></div>
+                </div>
+
+                <div id="leafNodes" class="stat-item">
+                    <h3>Leaf Nodes (Top 10)</h3>
+                    <div class="stat-list"></div>
+                </div>
+            </div>
+
+            <!-- Help Tab -->
+            <div id="help-tab" class="tab-content">
+                <div class="help-section">
+                    <h3>Keyboard Shortcuts</h3>
+                    <ul>
+                        <li><code>F</code> - Fit graph to window</li>
+                        <li><code>R</code> - Re-apply current layout</li>
+                        <li><code>Ctrl+F</code> - Focus search box</li>
+                        <li><code>Esc</code> - Clear selection/highlights</li>
+                        <li><code>Ctrl+Click</code> - Multi-select nodes</li>
+                        <li><code>+/-</code> - Zoom in/out</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h3>Search</h3>
+                    <p>Type any part of a symbol name to find matches. Click on search results to focus that node.</p>
+                </div>
+
+                <div class="help-section">
+                    <h3>Path Finding</h3>
+                    <p>Enable "Find Path Between Nodes" in the Filters tab, then click two nodes to see the dependency path between them.</p>
+                </div>
+
+                <div class="help-section">
+                    <h3>Node Types</h3>
+                    <p>Functions are rounded rectangles, Structs are diamonds, and Macros are octagons. Filter them in the Filters tab.</p>
+                </div>
+
+                <div class="help-section">
+                    <h3>Layouts</h3>
+                    <p>Different layouts work better for different graph structures. Hierarchical (DAG) works well for clear dependency chains. Force-directed layouts (CoSE, fCoSE) work well for complex graphs.</p>
+                </div>
+
+                <div class="help-section">
+                    <h3>Export</h3>
+                    <p>Export your graph as PNG or SVG. The export captures the current view and zoom level.</p>
+                </div>
+
+                <div class="help-section">
+                    <h3>Simplify</h3>
+                    <p>Use the degree filter to hide less-connected nodes and focus on the core dependency structure.</p>
                 </div>
             </div>
         </div>
@@ -221,11 +746,482 @@
         </div>
     </div>
 
-    <div id="cy"></div>
-    <div id="loading">Loading graph data...</div>
+    <div id="cy">
+        <div id="minimap"></div>
+    </div>
+    <div id="loading">
+        <div>Loading graph data...</div>
+        <div class="spinner overlay"></div>
+    </div>
 
     <script>
         let cy;
+        let pathFindingMode = false;
+        let pathFindingNodes = [];
+        let currentZoom = 1;
+
+        // Helper functions to manage button states
+        function disableAllButtons() {
+            const buttons = ['relayout', 'fit', 'export', 'exportSvg', 'saveLayout', 'loadLayout',
+                            'zoomIn', 'zoomOut', 'zoomReset', 'pathMode', 'colorByFile', 'resetColors'];
+            buttons.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.disabled = true;
+            });
+            document.getElementById('degreeFilter').disabled = true;
+        }
+
+        function enableAllButtons() {
+            const buttons = ['relayout', 'fit', 'export', 'exportSvg', 'saveLayout', 'loadLayout',
+                            'zoomIn', 'zoomOut', 'zoomReset', 'pathMode', 'colorByFile', 'resetColors'];
+            buttons.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.disabled = false;
+            });
+            document.getElementById('degreeFilter').disabled = false;
+        }
+
+        function showButtonSpinner() {
+            document.getElementById('buttonSpinner').style.display = 'inline-block';
+        }
+
+        function hideButtonSpinner() {
+            document.getElementById('buttonSpinner').style.display = 'none';
+        }
+
+        // Tab switching
+        function setupTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Remove active from all tabs and content
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+                    // Add active to clicked tab and corresponding content
+                    tab.classList.add('active');
+                    const targetId = tab.getAttribute('data-tab');
+                    document.getElementById(targetId).classList.add('active');
+                });
+            });
+        }
+
+        // Keyboard shortcuts
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', function(e) {
+                // Ignore if typing in input
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
+                    if (e.key === 'Escape') {
+                        e.target.blur();
+                        clearHighlights();
+                    }
+                    return;
+                }
+
+                switch(e.key) {
+                    case 'f':
+                    case 'F':
+                        if (!e.ctrlKey && !e.metaKey) {
+                            e.preventDefault();
+                            if (cy) cy.fit(null, 50);
+                        }
+                        break;
+                    case 'r':
+                    case 'R':
+                        e.preventDefault();
+                        if (cy && !document.getElementById('relayout').disabled) {
+                            const layoutName = document.getElementById('layout').value;
+                            applyLayout(layoutName);
+                        }
+                        break;
+                    case '+':
+                    case '=':
+                        e.preventDefault();
+                        zoomIn();
+                        break;
+                    case '-':
+                    case '_':
+                        e.preventDefault();
+                        zoomOut();
+                        break;
+                    case 'Escape':
+                        clearHighlights();
+                        clearSelection();
+                        exitPathFindingMode();
+                        break;
+                }
+
+                // Ctrl+F for search focus
+                if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                    e.preventDefault();
+                    document.getElementById('search').focus();
+                }
+            });
+        }
+
+        // Zoom functions
+        function updateZoomDisplay() {
+            if (cy) {
+                currentZoom = cy.zoom();
+                const zoomPercent = Math.round(currentZoom * 100);
+                document.getElementById('zoomLevel').textContent = zoomPercent + '%';
+            }
+        }
+
+        function zoomIn() {
+            if (cy) {
+                cy.zoom({
+                    level: cy.zoom() * 1.2,
+                    renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 }
+                });
+                updateZoomDisplay();
+            }
+        }
+
+        function zoomOut() {
+            if (cy) {
+                cy.zoom({
+                    level: cy.zoom() * 0.8,
+                    renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 }
+                });
+                updateZoomDisplay();
+            }
+        }
+
+        function zoomReset() {
+            if (cy) {
+                cy.zoom(1);
+                cy.center();
+                updateZoomDisplay();
+            }
+        }
+
+        // Theme toggle
+        function toggleTheme() {
+            document.body.classList.toggle('light-theme');
+            const btn = document.getElementById('themeToggle');
+            if (document.body.classList.contains('light-theme')) {
+                btn.textContent = 'Switch to Dark';
+                localStorage.setItem('theme', 'light');
+            } else {
+                btn.textContent = 'Switch to Light';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Load theme preference
+        function loadThemePreference() {
+            const theme = localStorage.getItem('theme');
+            if (theme === 'light') {
+                document.body.classList.add('light-theme');
+                document.getElementById('themeToggle').textContent = 'Switch to Dark';
+            }
+        }
+
+        // Layout save/load
+        function saveLayout() {
+            if (!cy) return;
+            const positions = {};
+            cy.nodes().forEach(node => {
+                positions[node.id()] = node.position();
+            });
+            localStorage.setItem('graphLayout', JSON.stringify(positions));
+            alert('Layout saved!');
+        }
+
+        function loadLayout() {
+            if (!cy) return;
+            const positions = JSON.parse(localStorage.getItem('graphLayout'));
+            if (!positions) {
+                alert('No saved layout found!');
+                return;
+            }
+            cy.nodes().forEach(node => {
+                if (positions[node.id()]) {
+                    node.position(positions[node.id()]);
+                }
+            });
+            alert('Layout loaded!');
+        }
+
+        // Export functions
+        function exportPNG() {
+            if (!cy) return;
+            const png = cy.png({ full: true, scale: 2 });
+            const link = document.createElement('a');
+            link.download = 'dependency-graph.png';
+            link.href = png;
+            link.click();
+        }
+
+        function exportSVG() {
+            if (!cy) return;
+            const svg = cy.svg({ full: true });
+            const blob = new Blob([svg], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = 'dependency-graph.svg';
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Search with results panel
+        function updateSearchResults(query) {
+            if (!cy) return;
+
+            const resultsDiv = document.getElementById('searchResults');
+            const countDiv = document.getElementById('searchCount');
+
+            if (query === '') {
+                clearHighlights();
+                resultsDiv.style.display = 'none';
+                countDiv.textContent = '';
+                return;
+            }
+
+            cy.elements().removeClass('highlighted dimmed');
+
+            const matches = cy.nodes().filter(node => {
+                return node.data('label').toLowerCase().includes(query.toLowerCase());
+            });
+
+            if (matches.length > 0) {
+                cy.elements().addClass('dimmed');
+                matches.removeClass('dimmed').addClass('highlighted');
+
+                // Show results
+                resultsDiv.innerHTML = '';
+                matches.forEach(node => {
+                    const item = document.createElement('div');
+                    item.className = 'search-result-item';
+                    item.textContent = node.data('label');
+                    item.onclick = () => {
+                        cy.elements().removeClass('highlighted dimmed');
+                        node.addClass('highlighted');
+                        cy.center(node);
+                        cy.zoom(1.5);
+                        showNodeInfo(node);
+                    };
+                    resultsDiv.appendChild(item);
+                });
+                resultsDiv.style.display = 'block';
+                countDiv.textContent = `Found ${matches.length} match${matches.length !== 1 ? 'es' : ''}`;
+            } else {
+                resultsDiv.style.display = 'none';
+                countDiv.textContent = 'No matches found';
+            }
+        }
+
+        // Node type filtering
+        function applyNodeTypeFilters() {
+            if (!cy) return;
+
+            const showFunctions = document.getElementById('filterFunction').checked;
+            const showStructs = document.getElementById('filterStruct').checked;
+            const showMacros = document.getElementById('filterMacro').checked;
+
+            cy.nodes().forEach(node => {
+                const kind = node.data('kind');
+                let show = true;
+
+                if (kind === 'function' && !showFunctions) show = false;
+                if (kind === 'struct' && !showStructs) show = false;
+                if (kind === 'macro' && !showMacros) show = false;
+
+                if (show) {
+                    node.style('display', 'element');
+                } else {
+                    node.style('display', 'none');
+                }
+            });
+
+            updateStats();
+        }
+
+        // Path finding
+        function enterPathFindingMode() {
+            pathFindingMode = true;
+            pathFindingNodes = [];
+            document.getElementById('pathModeIndicator').style.display = 'block';
+            document.getElementById('pathMode').style.display = 'none';
+            document.getElementById('clearPath').style.display = 'block';
+        }
+
+        function exitPathFindingMode() {
+            pathFindingMode = false;
+            pathFindingNodes = [];
+            document.getElementById('pathModeIndicator').style.display = 'none';
+            document.getElementById('pathMode').style.display = 'block';
+            document.getElementById('clearPath').style.display = 'none';
+            clearHighlights();
+        }
+
+        function handlePathFindingClick(node) {
+            pathFindingNodes.push(node);
+
+            if (pathFindingNodes.length === 2) {
+                // Find path
+                const start = pathFindingNodes[0];
+                const end = pathFindingNodes[1];
+                const aStar = cy.elements().aStar({
+                    root: start,
+                    goal: end
+                });
+
+                if (aStar.found) {
+                    cy.elements().removeClass('highlighted dimmed');
+                    cy.elements().addClass('dimmed');
+                    aStar.path.removeClass('dimmed').addClass('highlighted');
+                    cy.fit(aStar.path, 50);
+                } else {
+                    alert('No path found between these nodes!');
+                }
+
+                exitPathFindingMode();
+            } else {
+                // Highlight first node
+                cy.elements().removeClass('highlighted dimmed');
+                cy.elements().addClass('dimmed');
+                node.removeClass('dimmed').addClass('highlighted');
+            }
+        }
+
+        // Multiple selection
+        let selectedNodes = [];
+
+        function clearSelection() {
+            selectedNodes = [];
+        }
+
+        // Color by file
+        function colorByFile() {
+            if (!cy) return;
+
+            const fileColors = {};
+            const colors = [
+                '#4ec9b0', '#c586c0', '#dcdcaa', '#9cdcfe', '#ce9178',
+                '#6a9955', '#d16969', '#569cd6', '#4fc1ff', '#c586c0'
+            ];
+            let colorIndex = 0;
+
+            cy.nodes().forEach(node => {
+                const file = node.data('file');
+                if (file) {
+                    if (!fileColors[file]) {
+                        fileColors[file] = colors[colorIndex % colors.length];
+                        colorIndex++;
+                    }
+                    node.style('background-color', fileColors[file]);
+                }
+            });
+        }
+
+        function resetColors() {
+            if (!cy) return;
+            cy.nodes().forEach(node => {
+                const kind = node.data('kind');
+                if (kind === 'struct') {
+                    node.style('background-color', '#c586c0');
+                } else if (kind === 'macro') {
+                    node.style('background-color', '#dcdcaa');
+                } else {
+                    node.style('background-color', '#4ec9b0');
+                }
+            });
+        }
+
+        // Simplify mode (degree filter)
+        function applyDegreeFilter() {
+            if (!cy) return;
+
+            const minDegree = parseInt(document.getElementById('degreeFilter').value);
+            document.getElementById('degreeValue').textContent =
+                minDegree === 0 ? '0 (show all)' : minDegree;
+
+            cy.nodes().forEach(node => {
+                if (node.degree() <= minDegree) {
+                    node.style('display', 'none');
+                } else {
+                    node.style('display', 'element');
+                }
+            });
+
+            updateStats();
+        }
+
+        // Statistics
+        function calculateStatistics() {
+            if (!cy) return;
+
+            // Calculate in-degree (most called)
+            const inDegrees = [];
+            cy.nodes().forEach(node => {
+                const inEdges = node.incomers('edge').length;
+                inDegrees.push({ node: node, degree: inEdges });
+            });
+            inDegrees.sort((a, b) => b.degree - a.degree);
+
+            // Calculate out-degree (calls most)
+            const outDegrees = [];
+            cy.nodes().forEach(node => {
+                const outEdges = node.outgoers('edge').length;
+                outDegrees.push({ node: node, degree: outEdges });
+            });
+            outDegrees.sort((a, b) => b.degree - a.degree);
+
+            // Find leaf nodes (no outgoing edges)
+            const leafNodes = [];
+            cy.nodes().forEach(node => {
+                if (node.outgoers('edge').length === 0) {
+                    const inEdges = node.incomers('edge').length;
+                    leafNodes.push({ node: node, degree: inEdges });
+                }
+            });
+            leafNodes.sort((a, b) => b.degree - a.degree);
+
+            // Display statistics
+            displayTopStats('topCallers', inDegrees.slice(0, 10));
+            displayTopStats('topCallees', outDegrees.slice(0, 10));
+            displayTopStats('leafNodes', leafNodes.slice(0, 10));
+        }
+
+        function displayTopStats(containerId, items) {
+            const container = document.getElementById(containerId);
+            const listDiv = container.querySelector('.stat-list');
+            listDiv.innerHTML = '';
+
+            if (items.length === 0) {
+                listDiv.innerHTML = '<div style="color: #858585;">No data</div>';
+                return;
+            }
+
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'stat-list-item';
+                div.innerHTML = `
+                    <span>${item.node.data('label')}</span>
+                    <span style="color: #4ec9b0;">${item.degree}</span>
+                `;
+                div.onclick = () => {
+                    cy.elements().removeClass('highlighted dimmed');
+                    cy.elements().addClass('dimmed');
+                    item.node.removeClass('dimmed').addClass('highlighted');
+                    item.node.neighborhood().removeClass('dimmed').addClass('highlighted');
+                    cy.center(item.node);
+                    cy.zoom(1.5);
+                    showNodeInfo(item.node);
+                };
+                listDiv.appendChild(div);
+            });
+        }
+
+        function updateStats() {
+            if (!cy) return;
+            document.getElementById('nodeCount').textContent = cy.nodes().length;
+            document.getElementById('edgeCount').textContent = cy.edges().length;
+            document.getElementById('visibleNodeCount').textContent = cy.nodes(':visible').length;
+        }
 
         // Initialize Cytoscape with data
         async function initGraph(data) {
@@ -323,14 +1319,38 @@
                 });
 
                 // Update stats
-                document.getElementById('nodeCount').textContent = cy.nodes().length;
-                document.getElementById('edgeCount').textContent = cy.edges().length;
+                updateStats();
+                calculateStatistics();
+
+                // Initialize minimap
+                try {
+                    cy.navigator({
+                        container: document.getElementById('minimap'),
+                        viewLiveFramerate: 0,
+                        thumbnailEventFramerate: 30,
+                        thumbnailLiveFramerate: false,
+                        dblClickDelay: 200,
+                        removeCustomContainer: false,
+                        rerenderDelay: 100
+                    });
+                } catch (e) {
+                    console.log('Minimap not available:', e);
+                }
+
+                // Zoom event listener
+                cy.on('zoom', function() {
+                    updateZoomDisplay();
+                });
 
                 // Setup event handlers (only once)
                 if (!cy.data('handlersSetup')) {
                     setupEventHandlers();
                     cy.data('handlersSetup', true);
                 }
+
+                // Enable buttons after successful initialization
+                enableAllButtons();
+                updateZoomDisplay();
 
             } catch (error) {
                 document.getElementById('loading').textContent = 'Error loading graph data';
@@ -342,6 +1362,7 @@
         // Load default JSON file
         async function loadDefaultFile() {
             try {
+                disableAllButtons();
                 document.getElementById('loading').textContent = 'Loading default graph data...';
                 document.getElementById('loading').style.display = 'block';
                 const response = await fetch('../knowledge/all_deps.json');
@@ -355,57 +1376,105 @@
         }
 
         function setupEventHandlers() {
-            // Node click
+            // Node click - with path finding and multi-select support
             cy.on('tap', 'node', function(evt) {
                 const node = evt.target;
-                showNodeInfo(node);
+
+                if (pathFindingMode) {
+                    handlePathFindingClick(node);
+                } else if (evt.originalEvent.ctrlKey || evt.originalEvent.metaKey) {
+                    // Multi-select
+                    if (selectedNodes.includes(node)) {
+                        selectedNodes = selectedNodes.filter(n => n !== node);
+                        node.removeClass('highlighted');
+                    } else {
+                        selectedNodes.push(node);
+                        node.addClass('highlighted');
+                    }
+
+                    if (selectedNodes.length > 0) {
+                        showMultiSelectInfo(selectedNodes);
+                    } else {
+                        showDefaultInfo();
+                    }
+                } else {
+                    // Normal click
+                    clearSelection();
+                    showNodeInfo(node);
+                }
             });
 
             // Background click
             cy.on('tap', function(evt) {
                 if (evt.target === cy) {
                     clearHighlights();
+                    clearSelection();
                     showDefaultInfo();
                 }
             });
 
-            // Search
+            // Search with results panel
             document.getElementById('search').addEventListener('input', function(e) {
-                const query = e.target.value.toLowerCase();
-
-                if (query === '') {
-                    clearHighlights();
-                    return;
-                }
-
-                cy.elements().removeClass('highlighted dimmed');
-
-                const matches = cy.nodes().filter(node => {
-                    return node.data('label').toLowerCase().includes(query);
-                });
-
-                if (matches.length > 0) {
-                    cy.elements().addClass('dimmed');
-                    matches.removeClass('dimmed').addClass('highlighted');
-                    cy.fit(matches, 50);
-                }
+                const query = e.target.value;
+                updateSearchResults(query);
             });
 
-            // Relayout
+            // Zoom controls
+            document.getElementById('zoomIn').addEventListener('click', zoomIn);
+            document.getElementById('zoomOut').addEventListener('click', zoomOut);
+            document.getElementById('zoomReset').addEventListener('click', zoomReset);
+
+            // Layout controls
             document.getElementById('relayout').addEventListener('click', function() {
                 const layoutName = document.getElementById('layout').value;
                 applyLayout(layoutName);
             });
-
-            // Fit
             document.getElementById('fit').addEventListener('click', function() {
                 cy.fit(null, 50);
             });
+            document.getElementById('saveLayout').addEventListener('click', saveLayout);
+            document.getElementById('loadLayout').addEventListener('click', loadLayout);
 
-            // Export (requires cy.png() which needs cytoscape-canvas)
-            document.getElementById('export').addEventListener('click', function() {
-                alert('PNG export requires a server setup. Use browser screenshot for now.');
+            // Export
+            document.getElementById('export').addEventListener('click', exportPNG);
+            document.getElementById('exportSvg').addEventListener('click', exportSVG);
+
+            // Theme toggle
+            document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+            // Node type filters
+            document.getElementById('filterFunction').addEventListener('change', applyNodeTypeFilters);
+            document.getElementById('filterStruct').addEventListener('change', applyNodeTypeFilters);
+            document.getElementById('filterMacro').addEventListener('change', applyNodeTypeFilters);
+
+            // Path finding
+            document.getElementById('pathMode').addEventListener('click', enterPathFindingMode);
+            document.getElementById('clearPath').addEventListener('click', exitPathFindingMode);
+
+            // Color by file
+            document.getElementById('colorByFile').addEventListener('click', colorByFile);
+            document.getElementById('resetColors').addEventListener('click', resetColors);
+
+            // Degree filter
+            document.getElementById('degreeFilter').addEventListener('input', applyDegreeFilter);
+        }
+
+        function showMultiSelectInfo(nodes) {
+            let html = `<h2>Multiple Selection (${nodes.length} nodes)</h2>`;
+
+            nodes.forEach(node => {
+                const data = node.data();
+                html += `
+                    <div class="field" style="margin-bottom: 10px; padding: 8px; background: #2d2d30; border-radius: 3px;">
+                        <span class="label">${data.label}</span>
+                        <span class="value" style="font-size: 11px; display: block; margin-top: 4px;">
+                            ${data.kind || 'unknown'} - ${data.file || 'N/A'}
+                        </span>
+                    </div>
+                `;
             });
+
+            document.getElementById('info').innerHTML = html;
         }
 
         function showNodeInfo(node) {
@@ -478,6 +1547,10 @@
         }
 
         function applyLayout(name) {
+            // Disable buttons and show spinner during layout calculation
+            disableAllButtons();
+            showButtonSpinner();
+
             let layout;
 
             switch(name) {
@@ -506,14 +1579,63 @@
                     layout = {
                         name: 'cose',
                         idealEdgeLength: 100,
-                        nodeOverlap: 20
+                        nodeOverlap: 20,
+                        randomize: true
+                    };
+                    break;
+                case 'cose-bilkent':
+                    layout = {
+                        name: 'cose-bilkent',
+                        quality: 'default',
+                        nodeRepulsion: 4500,
+                        idealEdgeLength: 100,
+                        edgeElasticity: 0.45,
+                        nestingFactor: 0.1,
+                        gravity: 0.25,
+                        numIter: 2500,
+                        tile: true,
+                        randomize: true
+                    };
+                    break;
+                case 'fcose':
+                    layout = {
+                        name: 'fcose',
+                        quality: 'default',
+                        randomize: true,
+                        nodeSeparation: 75,
+                        idealEdgeLength: 100,
+                        edgeElasticity: 0.45,
+                        nestingFactor: 0.1,
+                        gravity: 0.25,
+                        numIter: 2500,
+                        tile: true
+                    };
+                    break;
+                case 'concentric':
+                    layout = {
+                        name: 'concentric',
+                        concentric: function(node) {
+                            return node.degree();
+                        },
+                        levelWidth: function(nodes) {
+                            return 2;
+                        },
+                        minNodeSpacing: 50
                     };
                     break;
                 default:
                     layout = { name: 'dagre' };
             }
 
-            cy.layout(layout).run();
+            const layoutInstance = cy.layout(layout);
+
+            // Re-enable buttons when layout is complete
+            layoutInstance.on('layoutstop', function() {
+                enableAllButtons();
+                hideButtonSpinner();
+            });
+
+            layoutInstance.run();
         }
 
         // Handle file input
@@ -522,6 +1644,7 @@
             if (!file) return;
 
             try {
+                disableAllButtons();
                 document.getElementById('loading').textContent = 'Loading ' + file.name + '...';
                 document.getElementById('loading').style.display = 'block';
 
@@ -540,7 +1663,10 @@
             }
         });
 
-        // Initialize on load with default file
+        // Initialize on load
+        setupTabs();
+        setupKeyboardShortcuts();
+        loadThemePreference();
         loadDefaultFile();
     </script>
 </body>
