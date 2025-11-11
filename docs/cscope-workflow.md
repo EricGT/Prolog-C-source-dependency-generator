@@ -2,7 +2,13 @@
 
 ## Overview
 
-This workflow uses cscope to extract symbol-level dependencies from C source code, import them into Prolog, analyze the dependency graph, and export to Cytoscape.js for interactive visualization.
+This workflow uses cscope to extract symbol-level dependencies from C source code, import them into a persistent Prolog database, analyze the dependency graph, and export to Cytoscape.js for interactive visualization.
+
+**Two extraction methods available:**
+- **Python script** (recommended) - Mature, feature-complete, comprehensive logging
+- **Prolog DCG-based** (experimental) - Pure Prolog implementation, ideal for research and customization
+
+Both methods produce identical output and work with the same persistent Prolog database.
 
 ## Prerequisites
 
@@ -20,7 +26,13 @@ This workflow uses cscope to extract symbol-level dependencies from C source cod
    ```
    This makes cscope available in Git Bash for the current session.
 
-## Step 1: Generate Cscope Data
+## Data Extraction Options
+
+This project provides two methods for extracting dependency data from C source code. Both produce identical tab-separated text files that import into the persistent Prolog database.
+
+## Step 1 (Option A): Generate Cscope Data with Python Script
+
+**Recommended for production use** - Mature and feature-complete.
 
 Use the automated Python script to generate all cscope data:
 
@@ -46,6 +58,60 @@ This will:
 2. Extract definitions, function calls, symbols, and includes
 3. Place extracted text files in `data/extracted/`
 4. Write logs to `logs/`
+
+## Step 1 (Option B): Generate Cscope Data with Prolog DCGs
+
+**Experimental - for research and customization** - Pure Prolog implementation using Definite Clause Grammars.
+
+```bash
+# Start SWI-Prolog
+swipl
+
+# Load the extraction module
+?- ['src/prolog/cscope_extract'].
+true.
+
+# Generate cscope data using Prolog DCG parsing
+?- generate_cscope_data(
+     '~/Projects/SqliteVdbe/reference/sqlite-src-3510000',
+     [root('.'), debug(1)]
+   ).
+```
+
+**Options for generate_cscope_data/2:**
+- `root(Path)` - Project root directory for output files (default: current directory)
+- `debug(Level)` - Debug level 0-2 (0=silent, 1=summary, 2=detailed)
+- `quiet(Boolean)` - Suppress all output (default: false)
+
+**What it does:**
+1. Runs cscope queries using the existing cscope database
+2. Parses output using efficient DCG (Definite Clause Grammar) rules
+3. Normalizes paths to lowercase with forward slashes
+4. Writes extracted data to `data/extracted/`
+5. Writes logs to `logs/cscope_generation.log`
+
+**Output files (same as Python script):**
+- `cscope_symbols.txt` - All symbol references
+- `cscope_definitions.txt` - Symbol definitions (functions, structs, macros, etc.)
+- `cscope_callees.txt` - Function call relationships
+- `cscope_callers.txt` - Reverse call relationships
+- `cscope_includes.txt` - Include file relationships
+
+**Testing:**
+The DCG extraction is fully tested with comprehensive unit tests:
+```prolog
+?- ['test/prolog/test_cscope_extract_dcg'].
+?- run_tests.
+% PL-Unit: ... 100+ tests passed
+```
+
+**Why use Prolog extraction?**
+- Full control over parsing logic in Prolog
+- Easy to extend with custom predicates
+- Single-pass DCG parsing is very efficient
+- Ideal for research or customization
+
+**Note:** Both Python and Prolog methods produce identical output formats and can be used interchangeably.
 
 ### Cscope Output Format
 
@@ -158,22 +224,45 @@ true.
 
 ### Database Management
 
+The persistent database is stored in `knowledge/cscope_facts.db` using SWI-Prolog's `library(persistency)`.
+
+**View database statistics:**
 ```prolog
-% View database statistics
 ?- cscope_db:db_statistics.
 Database statistics:
   Symbols:     25530
   Definitions: 1523
   Calls:       4892
+```
+Shows the number of facts in each category. Use this to verify successful import or check database size.
 
-% Clear database (removes all data - you'll need to re-import)
+**Clear database (removes all data - you'll need to re-import):**
+```prolog
 ?- cscope_db:clear_db.
 Database cleared.
+```
+Removes all facts from the persistent database. The file remains but is empty. Use when:
+- Starting analysis of a different codebase
+- Database corruption detected
+- Want to re-import with different filtering
 
-% Compact journal (optimizes file size, keeps data)
+**Compact journal (optimizes file size, keeps data):**
+```prolog
 ?- cscope_db:compact_journal.
 Journal compacted.
 ```
+Optimizes the database file by consolidating the transaction journal. Use when:
+- Database file grows large after many imports/updates
+- Want to reduce disk space usage
+- Preparing to commit database to version control (if tracking it)
+
+**Database size:** Typically 0.1-0.5 MB for small codebases (< 5000 symbols), 0.5-5 MB for medium codebases (5000-50000 symbols), 5-50 MB for large codebases (> 50000 symbols).
+
+**Performance tips:**
+- The database auto-loads on module load (very fast, < 1 second for most projects)
+- Queries are in-memory after loading, so analysis is instant
+- No need to re-import unless source code changes
+- Use `compact_journal/0` periodically if doing many incremental imports
 
 **Note:** Error logs (if any) will be written to `logs/cscope_import_errors.log`
 
@@ -474,6 +563,8 @@ To focus on a specific area, you can filter programmatically before exporting.
 ## Workflow Summary
 
 ### First Time or After Source Changes
+
+**Option A: Python Extraction (Recommended)**
 ```
 1. python src/python/generate_cscope_data.py --src <path> --root .
 2. swipl
@@ -484,6 +575,18 @@ To focus on a specific area, you can filter programmatically before exporting.
 7. Run queries (calls/2, leaf_symbols/1, dependency_cone/2, etc.)
 ```
 
+**Option B: Prolog DCG Extraction (Experimental)**
+```
+1. swipl
+2. ['src/prolog/cscope_extract'].
+3. generate_cscope_data('<path>', [root('.'), debug(1)]).
+4. ['src/prolog/cscope_import'].
+5. import_cscope_symbols('data/extracted/cscope_symbols.txt', []).
+6. import_cscope_defs('data/extracted/cscope_definitions.txt', []).
+7. import_cscope_calls('data/extracted/cscope_callees.txt', []).
+8. Run queries (calls/2, leaf_symbols/1, dependency_cone/2, etc.)
+```
+
 ### Subsequent Sessions (Data Already Loaded)
 ```
 1. swipl
@@ -491,10 +594,16 @@ To focus on a specific area, you can filter programmatically before exporting.
 3. Run queries immediately!
 ```
 
+**Key advantage of persistence:** No need to wait for extraction or import - just load the module and query!
+
 ### When to Re-Import
 - Database doesn't exist yet (first time)
 - Used `cscope_db:clear_db` to remove data
 - Source code changed and you regenerated cscope data
+
+### When to Use Each Extraction Method
+- **Python script:** Production use, mature and stable, comprehensive logging
+- **Prolog DCGs:** Research, customization, learning DCG parsing, extending with Prolog predicates
 
 ## Next Steps
 

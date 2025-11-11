@@ -5,31 +5,52 @@ A toolkit for analyzing C source code dependencies.
 ## Overview
 
 This project provides tools to:
-1. **Extract dependencies** from C code using cscope and ctags
-2. **Import** data into Prolog as queryable facts
-3. **Analyze** symbol-level dependency graphs
+1. **Extract dependencies** from C code using cscope (Python or Prolog DCG-based)
+2. **Import** data into a persistent Prolog database
+3. **Analyze** symbol-level dependency graphs with powerful queries
 4. **Visualize** relationships with interactive Cytoscape.js graphs
 
 ## Quick Start
 
 ```bash
-# Generate dependency data from C source
+# 1. Generate dependency data from C source
 python src/python/generate_cscope_data.py --src /path/to/source --root .
 
-# Start Prolog and import
+# 2. Start Prolog and import (first time only)
 swipl
 ?- ['src/prolog/cscope_import'].
-?- import_cscope_symbols('data/extracted/cscope_symbols.txt', user, []).
-?- import_cscope_defs('data/extracted/cscope_definitions.txt', user, []).
-?- import_cscope_calls('data/extracted/cscope_callees.txt', user, []).
+Created new database: knowledge/cscope_facts.db
 
-# Query and analyze
-?- symbols_matching(user, "parse", Symbol).     % Find parser-related symbols
-?- leaf_symbols_in(user, Symbol).               % Find functions with no dependencies
-?- export_to_cytoscape(user, 'graph.json', [filter("parse")]).  % Export filtered graph
+?- import_cscope_symbols('data/extracted/cscope_symbols.txt', []).
+import_cscope_symbols: processed=25530, imported=25530, failed=0
+
+?- import_cscope_defs('data/extracted/cscope_definitions.txt', []).
+import_cscope_defs: processed=1523, imported=1523, failed=0
+
+?- import_cscope_calls('data/extracted/cscope_callees.txt', []).
+import_cscope_calls: processed=4892, imported=4892, failed=0
+
+# 3. Query and analyze (works in all sessions - data persists!)
+?- symbols_matching("parse", Symbol).           % Find parser-related symbols
+?- leaf_symbols(Symbol).                        % Find functions with no dependencies
+?- export_to_cytoscape('graph.json', [filter("parse")]).  % Export filtered graph
 ```
 
-**For complete instructions including Windows setup, troubleshooting, and advanced usage, see the [Complete Workflow Guide](docs/cscope-workflow.md).**
+**Subsequent sessions:** Data automatically loads from the persistent database - no need to re-import!
+```prolog
+swipl
+?- ['src/prolog/cscope_import'].
+Loading database (0.3 MB)...
+Database statistics:
+  Symbols:     25530
+  Definitions: 1523
+  Calls:       4892
+true.
+
+% Query immediately without re-importing!
+```
+
+**For complete instructions including data extraction options, database management, Windows setup, troubleshooting, and advanced usage, see the [Complete Workflow Guide](docs/cscope-workflow.md).**
 
 ## Project Structure
 
@@ -37,20 +58,31 @@ swipl
 prolog-c-source-dependency-generator/
 ├── src/
 │   ├── prolog/
-│   │   ├── cscope_import.pl       # Main cscope importer module
-│   │   ├── deps_import_dcg.pl     # Legacy make/ctags importer
-│   │   └── cscope_in_dcg.pl       # DCG utilities
+│   │   ├── cscope_extract.pl      # Prolog DCG-based extraction (new!)
+│   │   ├── cscope_db.pl           # Persistent database layer (new!)
+│   │   ├── cscope_import.pl       # Main importer with analysis predicates
+│   │   └── deps_import_dcg.pl     # Legacy make/ctags importer
 │   └── python/
-│       └── generate_cscope_data.py # Cscope data generation script
+│       └── generate_cscope_data.py # Python cscope data extraction
+├── test/
+│   ├── prolog/                    # Prolog unit tests (new!)
+│   │   ├── test_cscope_extract_dcg.pl  # DCG extraction tests
+│   │   └── test_cscope_import_dcg.pl   # Import DCG tests
+│   ├── scripts/
+│   │   └── run_basic_deps_test.py      # Integration test runner
+│   └── README.md                  # Testing documentation
+├── fixtures/                      # Test data (new!)
+│   └── basic-deps/                # 6-level DAG test case
 ├── viewer/
 │   └── index.html                 # Interactive Cytoscape.js visualization
 ├── docs/
 │   └── cscope-workflow.md         # Complete workflow guide
 ├── data/
-│   ├── extracted/                 # Extracted text data
-│   └── legacy/                    # Old format data (tags, make deps)
-├── logs/                          # Log files from generation/import
-├── knowledge/                     # Prolog knowledge bases and exports
+│   ├── extracted/                 # Extracted text data (gitignored)
+│   └── legacy/                    # Old format data (gitignored)
+├── logs/                          # Log files (gitignored)
+├── knowledge/                     # Prolog databases & exports (gitignored)
+│   └── cscope_facts.db            # Persistent database file
 ├── LICENSE
 └── README.md                      # This file
 ```

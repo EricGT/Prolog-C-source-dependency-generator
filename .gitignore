@@ -71,7 +71,11 @@ out/
 docs/tool notes.md
 src/prolog/cscope_in_dcg.pl
 src/prolog/deps_import_dcg.pl
-test/data/basic-deps/src/cscope.files
+fixtures/basic-deps/src/cscope.files
 test_output.log
 docs/prolog-dcg-resources.md
 temp/
+
+# Claude Agent skill feedback (for sharing with skill creators)
+claude_agent_skill_feedback/
+test_determinism.pl

@@ -4,7 +4,7 @@ This directory contains test fixtures and scripts for validating the C dependenc
 
 ## Test Cases
 
-### `data/basic-deps/` - Basic Dependency DAG
+### `fixtures/basic-deps/` - Basic Dependency DAG
 
 A minimal C codebase with a 6-level dependency hierarchy structured as a directed acyclic graph (DAG).
 
@@ -95,7 +95,7 @@ You can also run queries manually:
 
 ```bash
 # Generate data
-python src/python/generate_cscope_data.py --src test/data/basic-deps --root .
+python src/python/generate_cscope_data.py --src fixtures/basic-deps --root .
 
 # Start Prolog
 swipl
@@ -269,13 +269,13 @@ If tests fail, check:
 - **"cscope not found"**: Add MSYS2 to PATH: `export PATH="/c/msys64/usr/bin:$PATH"`
 - **"swipl not found"**: Add SWI-Prolog to PATH: `export PATH="/c/Program Files/swipl/bin:$PATH"`
 - **Parse errors**: Check that files are UTF-8 encoded and tab-delimited
-- **Wrong counts**: Verify cscope database was built correctly in `test/data/basic-deps/src/`
+- **Wrong counts**: Verify cscope database was built correctly in `fixtures/basic-deps/src/`
 
 ## Adding New Tests
 
 To add new test cases:
 
-1. Create new directory: `test/data/<test-name>/`
+1. Create new directory: `fixtures/<test-name>/`
 2. Add C source files with clear dependency structure
 3. Create test script: `test/scripts/run_<test-name>_test.sh`
 4. Document expected results in this README

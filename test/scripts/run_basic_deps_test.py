@@ -33,10 +33,10 @@ def cleanup_previous_runs(project_root: Path):
         project_root / 'data' / 'extracted',
         project_root / 'logs',
         project_root / 'knowledge' / 'cscope_facts.db',
-        project_root / 'test' / 'data' / 'basic-deps' / 'src' / 'cscope.files',
-        project_root / 'test' / 'data' / 'basic-deps' / 'src' / 'cscope.out',
-        project_root / 'test' / 'data' / 'basic-deps' / 'src' / 'cscope.in.out',
-        project_root / 'test' / 'data' / 'basic-deps' / 'src' / 'cscope.po.out',
+        project_root / 'fixtures' / 'basic-deps' / 'src' / 'cscope.files',
+        project_root / 'fixtures' / 'basic-deps' / 'src' / 'cscope.out',
+        project_root / 'fixtures' / 'basic-deps' / 'src' / 'cscope.in.out',
+        project_root / 'fixtures' / 'basic-deps' / 'src' / 'cscope.po.out',
     ]
 
     for path in cleanup_paths:
@@ -74,7 +74,7 @@ def main():
         [
             sys.executable,
             'src/python/generate_cscope_data.py',
-            '--src', 'test/data/basic-deps',
+            '--src', 'fixtures/basic-deps',
             '--root', '.',
             '--quiet'
         ],
