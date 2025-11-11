@@ -79,3 +79,5 @@ temp/
 # Claude Agent skill feedback (for sharing with skill creators)
 claude_agent_skill_feedback/
 test_determinism.pl
+cscope.files
+nul

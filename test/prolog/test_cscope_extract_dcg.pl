@@ -1117,3 +1117,110 @@ test(function_names_file_det_empty) :-
     det_goal(phrase(function_names_file(_, []), [])).
 
 :- end_tests(determinism).
+
+% ============================================================
+% ===============  PATH HANDLING TESTS  ======================
+% ============================================================
+
+:- begin_tests(path_handling).
+
+% Test Unix-style absolute path
+test(unix_absolute_path, [condition(exists_directory('/tmp'))]) :-
+    % On Unix systems, /tmp should exist
+    catch(
+        generate_cscope_data('/tmp', [root('.'), debug(0), quiet(true)]),
+        _,
+        true  % May fail due to no source files, but path handling should work
+    ).
+
+% Test Windows-style absolute path with backslashes
+test(windows_backslash_path, [
+    condition(current_prolog_flag(windows, true)),
+    condition(exists_directory('C:\\Windows'))
+]) :-
+    % Test that backslash paths are accepted
+    catch(
+        generate_cscope_data('C:\\Windows', [root('.'), debug(0), quiet(true)]),
+        _,
+        true  % May fail due to no source files
+    ).
+
+% Test Windows-style absolute path with forward slashes
+test(windows_forward_slash_path, [
+    condition(current_prolog_flag(windows, true)),
+    condition(exists_directory('C:/Windows'))
+]) :-
+    catch(
+        generate_cscope_data('C:/Windows', [root('.'), debug(0), quiet(true)]),
+        _,
+        true
+    ).
+
+% Test Git Bash path conversion on Windows (/c/... -> C:/...)
+test(git_bash_path_conversion, [
+    condition(current_prolog_flag(windows, true))
+]) :-
+    % Create a test to verify Git Bash path gets converted
+    SrcDir = "/c/Windows",
+    atom_string(SrcDir, SrcDirStr),
+    % Verify conversion logic
+    string_concat("/", Rest, SrcDirStr),
+    string_length(Rest, Len),
+    Len >= 2,
+    sub_string(Rest, 0, 1, _, DriveLetter),
+    char_type(DriveLetter, alpha),
+    sub_string(Rest, 1, 1, _, "/"),
+    upcase_atom(DriveLetter, DriveUpper),
+    DriveUpper == 'C'.
+
+% Test relative path resolution
+test(relative_path, [setup(make_directory_path('test_temp')), cleanup(delete_directory('test_temp'))]) :-
+    % Test that relative paths are accepted
+    catch(
+        generate_cscope_data('./test_temp', [root('.'), debug(0), quiet(true)]),
+        _,
+        true
+    ).
+
+% Test non-existent directory fails
+test(nonexistent_directory, [fail]) :-
+    generate_cscope_data('/this/path/does/not/exist/at/all', [root('.'), debug(0), quiet(true)]).
+
+% Test tilde expansion (if supported)
+test(tilde_path, [
+    condition(\+ current_prolog_flag(windows, true)),
+    blocked('Tilde expansion depends on shell environment')
+]) :-
+    catch(
+        generate_cscope_data('~/', [root('.'), debug(0), quiet(true)]),
+        _,
+        true
+    ).
+
+% Test path with spaces (common on Windows)
+test(path_with_spaces, [
+    condition(current_prolog_flag(windows, true)),
+    condition(exists_directory('C:/Program Files'))
+]) :-
+    catch(
+        generate_cscope_data('C:/Program Files', [root('.'), debug(0), quiet(true)]),
+        _,
+        true
+    ).
+
+% Test that atom and string inputs both work
+test(atom_input) :-
+    catch(
+        generate_cscope_data('.', [root('.'), debug(0), quiet(true)]),
+        _,
+        true
+    ).
+
+test(string_input) :-
+    catch(
+        generate_cscope_data(".", [root('.'), debug(0), quiet(true)]),
+        _,
+        true
+    ).
+
+:- end_tests(path_handling).

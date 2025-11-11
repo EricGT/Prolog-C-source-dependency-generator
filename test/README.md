@@ -1,43 +1,22 @@
 # Test Suite
 
-This directory contains test fixtures and scripts for validating the C dependency analysis tool.
+This directory contains test scripts and unit tests for validating the C dependency analysis tool.
 
-## Test Cases
+## Directory Structure
 
-### `fixtures/basic-deps/` - Basic Dependency DAG
+- **`prolog/`** - Prolog unit tests using PLUnit
+- **`scripts/`** - Python test scripts for integration testing
+- **`../fixtures/`** - Test fixtures (C code samples) - see [fixtures/README.md](../fixtures/README.md)
 
-A minimal C codebase with a 6-level dependency hierarchy structured as a directed acyclic graph (DAG).
+## Test Fixtures
 
-**Structure:**
-- **27 total functions** across 6 levels
-- **Level 1**: 6 leaf functions (no dependencies)
-  - `min()`, `max()`, `abs_val()` (math utilities)
-  - `str_len()`, `str_equal()`, `str_copy()` (string utilities)
-- **Level 2**: 4 functions calling Level 1
-  - `buffer_init()`, `buffer_resize()` (buffer management)
-  - `validate_length()`, `validate_content()` (validation)
-- **Level 3**: 6 functions calling Level 2
-  - `parse_init()`, `parse_token()`, `parse_string()` (parser)
-  - `format_init()`, `format_output()`, `format_escape()` (formatter)
-- **Level 4**: 6 functions calling Level 3
-  - `processor_init()`, `processor_run()`, `processor_finalize()` (processor)
-  - `analyzer_setup()`, `analyzer_check()`, `analyzer_report()` (analyzer)
-- **Level 5**: 4 functions calling Level 4
-  - `initialize()`, `process()`, `cleanup()`, `error_handler()` (application)
-- **Level 6**: 1 top-level function calling Level 5
-  - `main()` (entry point)
+Test fixtures are located in the **`fixtures/`** directory at the project root (not in this `test/` directory).
 
-**Key Features:**
-- **DAG structure**: Functions call multiple dependencies (not just a linear chain)
-- **Realistic hierarchy**: Mimics actual C codebases with utilities → components → application
-- **No cycles**: Pure acyclic structure for testing topological sort
-
-**Purpose:**
-- Verify leaf detection works correctly (should find exactly 6 functions)
-- Test topological sorting (leaf-first ordering)
-- Validate DAG structure (multiple dependencies per function)
-- Ensure transitive dependency tracking (main → ... → min is 6 levels deep)
-- Confirm no false cycle detection
+See **[fixtures/README.md](../fixtures/README.md)** for detailed information about:
+- `fixtures/basic-deps/` - 6-level dependency DAG with 27 functions
+- Expected data counts and structure
+- How to use fixtures manually
+- How to add new fixtures
 
 ## Running Tests
 
@@ -95,7 +74,10 @@ You can also run queries manually:
 
 ```bash
 # Generate data
-python src/python/generate_cscope_data.py --src fixtures/basic-deps --root .
+# Note: The --src path should point to the directory containing C source files
+# If fixtures/basic-deps/ has a src/ subdirectory, use: --src fixtures/basic-deps/src
+# If source files are at the top level, use: --src fixtures/basic-deps
+python src/python/generate_cscope_data.py --src fixtures/basic-deps/src --root .
 
 # Start Prolog
 swipl
@@ -198,7 +180,8 @@ Journal compacted.
 
 ```
 First time or after source changes:
-  1. python src/python/generate_cscope_data.py --src <path> --root .
+  1. python src/python/generate_cscope_data.py --src <path-to-source-files> --root .
+     # <path-to-source-files> must point to directory containing .c/.h files
   2. swipl
   3. ['src/prolog/cscope_import'].  % Creates/loads database
   4. import_cscope_symbols(...).     % Import data (ONLY if new/changed)
@@ -273,10 +256,16 @@ If tests fail, check:
 
 ## Adding New Tests
 
-To add new test cases:
+### Adding Test Fixtures
 
-1. Create new directory: `fixtures/<test-name>/`
-2. Add C source files with clear dependency structure
-3. Create test script: `test/scripts/run_<test-name>_test.sh`
-4. Document expected results in this README
-5. Update `.gitignore` to exclude generated data if needed
+To add new test fixtures, see instructions in [fixtures/README.md](../fixtures/README.md#adding-new-fixtures).
+
+### Adding Test Scripts
+
+To add new test scripts:
+
+1. Create test script: `test/scripts/run_<test-name>_test.py` (or `.sh`)
+2. Follow the pattern from existing scripts (e.g., `run_basic_deps_test.py`)
+3. Document the test in this README
+4. Update expected results and pass/fail criteria
+5. Consider adding to CI/CD pipeline if applicable

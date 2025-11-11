@@ -72,11 +72,45 @@ swipl
 true.
 
 # Generate cscope data using Prolog DCG parsing
+# The path argument must point to the directory containing C source files (.c, .h, .cpp, .hpp)
+
+# Unix/Mac example - path to directory with source files
 ?- generate_cscope_data(
-     '~/Projects/SqliteVdbe/reference/sqlite-src-3510000',
+     '~/Projects/SqliteVdbe/reference/sqlite-src-3510000/src',
+     [root('.'), debug(1)]
+   ).
+
+# Windows example with forward slashes
+?- generate_cscope_data(
+     'C:/Users/Eric/Projects/SqliteVdbe/reference/sqlite-src-3510000/src',
+     [root('.'), debug(1)]
+   ).
+
+# Windows example with backslashes
+?- generate_cscope_data(
+     'C:\\Users\\Eric\\Projects\\SqliteVdbe\\reference\\sqlite-src-3510000\\src',
+     [root('.'), debug(1)]
+   ).
+
+# Git Bash path on Windows (auto-converted to C:/Users/...)
+?- generate_cscope_data(
+     '/c/Users/Eric/Projects/SqliteVdbe/reference/sqlite-src-3510000/src',
+     [root('.'), debug(1)]
+   ).
+
+# Relative path (resolved against root option first, then current directory)
+?- generate_cscope_data(
+     '../reference/sqlite-src-3510000/src',
      [root('.'), debug(1)]
    ).
 ```
+
+**Path Format Support:**
+The `SrcDir` argument accepts multiple path formats:
+- **Unix-style**: `/home/user/project/src` or `~/project/src`
+- **Windows-style**: `C:\Users\Project\src` or `C:/Users/Project/src`
+- **Git Bash-style**: `/c/Users/Project/src` (auto-converted to `C:/Users/Project/src` on Windows)
+- **Relative paths**: `./src` or `../other/src` (resolved against `root()` option first, then current directory)
 
 **Options for generate_cscope_data/2:**
 - `root(Path)` - Project root directory for output files (default: current directory)
@@ -531,9 +565,10 @@ To focus on a specific area, you can filter programmatically before exporting.
 ## Troubleshooting
 
 ### Empty Output Files
-- Check your source directory's `src/` subdirectory for database files (`cscope.out`, `cscope.in.out`, `cscope.po.out`)
-- Verify source files are in the `src/` subdirectory of your source tree
-- Run with `--debug 2` for detailed diagnostics: `python src/python/generate_cscope_data.py --src /path --root . --debug 2`
+- Check your source directory for cscope database files (`cscope.out`, `cscope.in.out`, `cscope.po.out`)
+- Verify the path you specified contains C source files (.c, .h, .cpp, .hpp)
+- Ensure you're pointing to the directory with source files, not a parent directory
+- Run with `--debug 2` for detailed diagnostics: `python src/python/generate_cscope_data.py --src /path/to/src --root . --debug 2`
 - Check logs in `logs/cscope_generation.log`
 
 ### Parser Errors
@@ -566,7 +601,8 @@ To focus on a specific area, you can filter programmatically before exporting.
 
 **Option A: Python Extraction (Recommended)**
 ```
-1. python src/python/generate_cscope_data.py --src <path> --root .
+# <path-to-source-files> must point to directory containing .c/.h files
+1. python src/python/generate_cscope_data.py --src <path-to-source-files> --root .
 2. swipl
 3. ['src/prolog/cscope_import'].
 4. import_cscope_symbols('data/extracted/cscope_symbols.txt', []).
@@ -577,9 +613,11 @@ To focus on a specific area, you can filter programmatically before exporting.
 
 **Option B: Prolog DCG Extraction (Experimental)**
 ```
+# <path-to-source-files> must point to directory containing .c/.h files
+# Supports Unix, Windows, Git Bash, and relative paths
 1. swipl
 2. ['src/prolog/cscope_extract'].
-3. generate_cscope_data('<path>', [root('.'), debug(1)]).
+3. generate_cscope_data('<path-to-source-files>', [root('.'), debug(1)]).
 4. ['src/prolog/cscope_import'].
 5. import_cscope_symbols('data/extracted/cscope_symbols.txt', []).
 6. import_cscope_defs('data/extracted/cscope_definitions.txt', []).

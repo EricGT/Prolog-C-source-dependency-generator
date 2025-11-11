@@ -14,7 +14,16 @@ This project provides tools to:
 
 ```bash
 # 1. Generate dependency data from C source
-python src/python/generate_cscope_data.py --src /path/to/source --root .
+# The --src path must point to the directory containing C source files (.c, .h, .cpp, .hpp)
+
+# Unix/Mac example:
+python src/python/generate_cscope_data.py --src ~/project/sqlite-src/src --root .
+
+# Windows example (Git Bash - forward slashes work):
+python src/python/generate_cscope_data.py --src /c/Users/Eric/project/sqlite-src/src --root .
+
+# Windows example (native - backslashes or forward slashes both work):
+python src/python/generate_cscope_data.py --src "C:\Users\Eric\project\sqlite-src\src" --root .
 
 # 2. Start Prolog and import (first time only)
 swipl

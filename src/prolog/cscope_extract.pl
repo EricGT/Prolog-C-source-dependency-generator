@@ -38,12 +38,18 @@ the Python generate_cscope_data.py script with pure Prolog + DCGs.
 %
 % Generate all cscope data files from source directory.
 %
+% Accepts SrcDir in multiple formats:
+%   - Unix-style: /home/user/project or ~/project
+%   - Windows-style: C:\Users\Project or C:/Users/Project
+%   - Git Bash-style: /c/Users/Project (converted to C:/Users/Project on Windows)
+%   - Relative: ./project or ../other (resolved against root or cwd)
+%
 % Options:
 %   - root(Path): Project root directory (default: '.')
 %   - debug(Level): Debug level 0-3 (default: 0)
 %   - quiet(Bool): Suppress output (default: false)
 %
-% @param SrcDir Source directory (must contain src/ subdirectory)
+% @param SrcDir Source directory containing C source files
 % @param Options Option list
 
 generate_cscope_data(SrcDir, Options) :-
@@ -53,10 +59,69 @@ generate_cscope_data(SrcDir, Options) :-
     option(quiet(Quiet), Options, false),
     !,  % Commit to options - ensure determinism
 
+    % Convert SrcDir to absolute path in native OS format
+    % Handles Unix/Windows/Git Bash/relative paths
+    (   atom(SrcDir)
+    ->  atom_string(SrcDir, SrcDirStr)
+    ;   SrcDirStr = SrcDir
+    ),
+
+    % Detect OS
+    (   current_prolog_flag(windows, true)
+    ->  IsWindows = true
+    ;   IsWindows = false
+    ),
+
+    % Convert Git Bash paths on Windows (/c/... -> C:/...)
+    (   IsWindows = true,
+        string_concat("/", Rest, SrcDirStr),
+        string_length(Rest, Len),
+        Len >= 2,
+        sub_string(Rest, 0, 1, _, DriveLetter),
+        char_type(DriveLetter, alpha),
+        sub_string(Rest, 1, 1, _, "/")
+    ->  upcase_atom(DriveLetter, DriveUpper),
+        string_concat("/", RestPath, Rest),
+        sub_string(RestPath, 1, _, 0, AfterDrive),
+        atomics_to_string([DriveUpper, ":/", AfterDrive], ConvertedPath)
+    ;   ConvertedPath = SrcDirStr
+    ),
+
+    % Resolve to absolute path
+    % Try relative to root first, then cwd
+    (   catch(
+            (   atom_string(Root, RootStr),
+                string_concat(RootStr, "/", RootWithSlash),
+                string_concat(RootWithSlash, ConvertedPath, TestPath),
+                atom_string(TestPathAtom, TestPath),
+                exists_directory(TestPathAtom),
+                absolute_file_name(TestPathAtom, AbsSrcDir)
+            ),
+            _,
+            fail
+        )
+    ->  true
+    ;   catch(
+            (   atom_string(ConvertedPathAtom, ConvertedPath),
+                absolute_file_name(ConvertedPathAtom, AbsSrcDir)
+            ),
+            _,
+            (   format(user_error, 'Error: Cannot resolve path: ~w~n', [SrcDir]),
+                fail
+            )
+        )
+    ),
+
+    % Validate directory exists
+    (   exists_directory(AbsSrcDir)
+    ->  true
+    ;   format(user_error, 'Error: Directory does not exist: ~w~n', [AbsSrcDir]),
+        fail
+    ),
+
     % Set up directories
     atom_concat(Root, '/data/extracted', ExtractedDir),
     atom_concat(Root, '/logs', LogDir),
-    atom_concat(SrcDir, '/src', SrcSubdir),
 
     % Create directories
     make_directory_path(ExtractedDir),
@@ -64,17 +129,17 @@ generate_cscope_data(SrcDir, Options) :-
 
     % Step 1: Build cscope database
     (Quiet == false -> format('[1/6] Building cscope database...~n', []) ; true),
-    build_cscope_database(SrcSubdir, DebugLevel),
+    build_cscope_database(AbsSrcDir, DebugLevel),
 
     % Step 2-5: Extract data
     (Quiet == false -> format('[2/6] Extracting symbols...~n', []) ; true),
-    extract_symbols(SrcSubdir, ExtractedDir, SymbolCount, DebugLevel),
+    extract_symbols(AbsSrcDir, ExtractedDir, SymbolCount, DebugLevel),
 
     (Quiet == false -> format('[3/6] Extracting callers...~n', []) ; true),
-    extract_callers(SrcSubdir, ExtractedDir, CallerCount, DebugLevel),
+    extract_callers(AbsSrcDir, ExtractedDir, CallerCount, DebugLevel),
 
     (Quiet == false -> format('[4/6] Extracting includes...~n', []) ; true),
-    extract_includes(SrcSubdir, ExtractedDir, IncludeCount, DebugLevel),
+    extract_includes(AbsSrcDir, ExtractedDir, IncludeCount, DebugLevel),
 
     (Quiet == false -> format('[5/6] Extracting definitions...~n', []) ; true),
     atom_concat(ExtractedDir, '/cscope_symbols.txt', SymbolsFile),
@@ -84,7 +149,7 @@ generate_cscope_data(SrcDir, Options) :-
     length(Defs, DefCount),
 
     (Quiet == false -> format('[6/6] Extracting function calls...~n', []) ; true),
-    extract_function_calls(SymbolsFile, Calls, [debug(DebugLevel), cscope_dir(SrcSubdir)]),
+    extract_function_calls(SymbolsFile, Calls, [debug(DebugLevel), cscope_dir(AbsSrcDir)]),
     atom_concat(ExtractedDir, '/cscope_callees.txt', CallsFile),
     write_calls(CallsFile, Calls),
     length(Calls, CallCount),
